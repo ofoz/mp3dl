@@ -1,0 +1,195 @@
+/* 管理后台：复用主站变量与基础组件，只补表格 / 统计卡 */
+
+.adm-tag {
+  font-size: 11px; line-height: 1; padding: 4px 8px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(109, 94, 252, .14), rgba(168, 85, 247, .12));
+  color: #5646d8;
+  border: 1px solid rgba(109, 94, 252, .16);
+  font-weight: 600; letter-spacing: 0;
+  margin-left: 2px;
+}
+
+.tabpane { padding: 24px 0 44px; }
+
+.block-gap { margin-top: 16px; }
+
+/* ---------- 概览 ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 1px rgba(20, 22, 31, .045), var(--shadow);
+  backdrop-filter: blur(18px) saturate(150%);
+  padding: 15px 17px;
+  overflow: hidden;
+  transition: transform .18s, box-shadow .18s;
+}
+.stat::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--grad);
+  opacity: .75;
+}
+.stat:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(20, 22, 31, .05), var(--shadow-lift); }
+.stat .k { font-size: 12.5px; color: var(--text-3); font-weight: 500; }
+.stat .v {
+  font-size: 26px; font-weight: 800; letter-spacing: -.035em; margin-top: 2px;
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.stat .v i { font-size: 12px; font-style: normal; color: var(--text-3); font-weight: 500; margin-left: 3px; letter-spacing: 0; }
+.stat .foot { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+.stat.accent .v { color: var(--brand); }
+.stat.ok .v { color: var(--success); }
+.stat.warn .v { color: var(--warn); }
+.stat.ok::before { background: linear-gradient(135deg, #10b981, #34d399); }
+.stat.warn::before { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+
+.sysinfo { font-size: 13px; color: var(--text-2); line-height: 2; }
+.sysinfo b { color: var(--text); font-weight: 700; }
+
+.quick-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.quick-links .btn { display: inline-flex; align-items: center; }
+
+/* ---------- 卡片标题 ---------- */
+.card-title { font-size: 16px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 5px; }
+.card-sub { font-size: 12.5px; color: var(--text-3); margin: 0 0 18px; line-height: 1.7; }
+
+/* ---------- 工具栏 ---------- */
+.toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(20, 22, 31, .05);
+  font-size: 13px; color: var(--text-2);
+}
+.toolbar b { font-weight: 700; letter-spacing: -.01em; }
+.toolbar .spacer { margin-left: auto; }
+.tool-input {
+  border: 1px solid var(--border-strong); border-radius: 11px;
+  padding: 8px 12px; font-size: 13px; outline: none;
+  background: rgba(255, 255, 255, .85);
+  min-width: 210px; color: var(--text);
+  transition: border-color .2s, box-shadow .2s;
+}
+.tool-input::placeholder { color: #a7adc0; }
+.tool-input:focus { border-color: rgba(109, 94, 252, .5); box-shadow: 0 0 0 4px rgba(109, 94, 252, .1); }
+.tool-input.select { min-width: 0; padding: 7px 8px; }
+.tool-meta { font-size: 12.5px; color: var(--text-3); }
+.checkline { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.checkline input { accent-color: var(--brand); width: 15px; height: 15px; }
+
+/* ---------- 表格 ---------- */
+/* 内容多时表格内部滚动，页面高度稳定；表头吸顶避免看串行 */
+.table-wrap { overflow: auto; max-height: 68vh; }
+table.grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+table.grid th {
+  text-align: left; font-weight: 600; font-size: 12px; color: var(--text-3);
+  padding: 10px 12px;
+  background: #f4f5fb;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+table.grid td {
+  padding: 10px 12px; border-bottom: 1px solid rgba(20, 22, 31, .045);
+  color: var(--text-2); vertical-align: middle;
+}
+table.grid tr:last-child td { border-bottom: 0; }
+table.grid tbody tr { transition: background .14s; }
+table.grid tbody tr:hover { background: rgba(109, 94, 252, .04); }
+table.grid td.strong { color: var(--text); font-weight: 600; }
+table.grid td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: var(--text); letter-spacing: -.01em; }
+table.grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.grid td.acts { white-space: nowrap; }
+table.grid td.acts .btn { margin-right: 4px; min-width: 62px; text-align: center; }
+table.grid td.acts .btn:last-child { margin-right: 0; }
+table.grid .sub { color: var(--text-3); font-size: 12px; }
+table.grid .badge { white-space: nowrap; }
+table.grid .empty-row td { text-align: center; color: var(--text-3); padding: 40px 12px; }
+.more { padding: 14px; text-align: center; }
+.more .btn { min-width: 140px; }
+
+.up { color: var(--success); font-weight: 700; font-variant-numeric: tabular-nums; }
+.down { color: var(--danger); font-weight: 700; font-variant-numeric: tabular-nums; }
+.dim { color: var(--text-3); }
+.nowrap { white-space: nowrap; }
+
+/* 顶栏：退出登录做成「破坏性操作」的视觉，避免和「返回站点」混淆 */
+.adm-mail { font-size: 13px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn.ghost.danger { color: var(--danger); }
+.btn.ghost.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.btn.ghost.danger:disabled { opacity: .55; cursor: default; }
+
+/* ---------- 卡密生成 ---------- */
+.code-form { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.code-form .field { margin-bottom: 0; width: 132px; }
+.code-form .field.grow { flex: 1; min-width: 180px; }
+.code-form .btn { padding: 11px 22px; }
+
+.gen-result {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.gen-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 11px 14px;
+  background: linear-gradient(135deg, rgba(15, 157, 112, .1), rgba(52, 211, 153, .08));
+  color: var(--success); font-size: 13px; font-weight: 500;
+}
+.gen-head .spacer { margin-left: auto; }
+.gen-head b { font-weight: 800; }
+.codebox {
+  margin: 0; padding: 14px; max-height: 260px; overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 2; color: var(--text);
+  background: rgba(246, 247, 253, .8); white-space: pre;
+}
+.quick-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+/* 弹窗里的 .btn 默认 width:100%，快捷面额要横排 */
+.modal .quick-row .btn { width: auto; flex: 1 1 0; padding: 8px 0; border-radius: 10px; }
+
+/* ---------- 未登录 / 无权限 ---------- */
+.guard {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(246, 247, 253, .82);
+  backdrop-filter: blur(10px);
+  display: grid; place-items: center; padding: 20px;
+}
+.guard[hidden] { display: none; }
+.guard-box { max-width: 380px; text-align: center; padding: 32px 28px; }
+.guard-ic { font-size: 32px; margin-bottom: 8px; }
+.guard-box h2 { font-size: 18px; margin: 0 0 6px; font-weight: 800; letter-spacing: -.02em; }
+.guard-box p { font-size: 13.5px; color: var(--text-2); margin: 0 0 20px; }
+.guard-box .btn { display: inline-block; padding: 10px 22px; }
+
+@media (max-width: 1080px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .adm-tag { display: none; }
+  /* 后台小屏右侧只有两个按钮，空间够，把站名放回来 */
+  .brand span.txt { display: inline; font-size: 16px; }
+  /* 小屏顶栏只留两个按钮，邮箱和徽章收起来，否则会把 tab 区域挤没 */
+  #admUser .badge, #admUser .dim { display: none; }
+  #admUser { gap: 6px; }
+  #admUser .btn { padding: 5px 8px; font-size: 12px; white-space: nowrap; }
+  .tabpane { padding: 16px 0 32px; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat { padding: 12px 13px; }
+  .stat .v { font-size: 20px; }
+  .stat::before { top: 10px; bottom: 10px; width: 2.5px; }
+  .tool-input { min-width: 0; flex: 1; }
+  .code-form .field { width: calc(50% - 5px); }
+  .code-form .field.grow { width: 100%; }
+  .code-form .btn { width: 100%; }
+  .table-wrap { max-height: 62vh; }
+  table.grid th, table.grid td { padding: 9px 10px; }
+}

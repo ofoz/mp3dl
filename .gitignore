@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行期数据：缓存音频、SQLite、密钥、musicdl 搜索缓存
+storage/
+musicdl_outputs/
+
+# 本地配置（含管理员口令、密钥）
+.env
+
+# 临时产物
+*.log
+shot-*.png
+
+# 改版前的旧界面截图（现役截图见 ui/）
+/admin-*.png
+/batch-*.png
+/login-*.png
+/pay-*.png
+/register-*.png
+
+# 音频样例：体积大且涉及版权，不入库
+samples/*.mp3

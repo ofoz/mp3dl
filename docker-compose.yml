@@ -1,0 +1,31 @@
+services:
+  mp3dl:
+    build:
+      context: ..
+      dockerfile: mp3dl/Dockerfile
+    image: mp3dl:latest
+    container_name: mp3dl
+    restart: unless-stopped
+    dns:
+      - 223.5.5.5
+      - 119.29.29.29
+    ports:
+      # 建议只绑本地，由 OpenResty / Nginx 反代并上 HTTPS
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./storage:/app/mp3dl/storage
+    environment:
+      - TZ=Asia/Shanghai
+      - MP3DL_SECRET=${MP3DL_SECRET:-please-change-this-secret}
+      - MP3DL_ADMIN_EMAIL=${MP3DL_ADMIN_EMAIL:-}
+      - MP3DL_ADMIN_PASSWORD=${MP3DL_ADMIN_PASSWORD:-}
+      - MP3DL_SITE_NAME=${MP3DL_SITE_NAME:-MP3库}
+      - MP3DL_JOB_WORKERS=${MP3DL_JOB_WORKERS:-3}
+      - MP3DL_MAX_PLAYLIST=${MP3DL_MAX_PLAYLIST:-200}
+      - MP3DL_CACHE_MAX_GB=${MP3DL_CACHE_MAX_GB:-20}
+      - MP3DL_CACHE_TTL_HOURS=${MP3DL_CACHE_TTL_HOURS:-48}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"

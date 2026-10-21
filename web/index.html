@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f5f6fc">
+<title>MP3库 · 搜歌即得 MP3，歌单一键打包</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%236d5efc'/><stop offset='1' stop-color='%23a855f7'/></linearGradient></defs><rect width='100' height='100' rx='26' fill='url(%23g)'/><text x='50' y='73' font-size='56' text-anchor='middle' fill='white'>♪</text></svg>">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <span class="mark">♪</span>
+      <span class="txt" id="siteName">MP3库</span>
+    </div>
+    <nav class="tabs">
+      <button data-tab="search" class="active">搜索下载</button>
+      <button data-tab="playlist">歌单下载</button>
+      <button data-tab="jobs">我的任务</button>
+    </nav>
+    <div class="top-right" id="userArea"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="tab-search">
+    <div class="hero">
+      <div class="hero-pill"><span class="pulse"></span>每天 10 首免费 · 网易云 / QQ / 酷狗</div>
+      <h1>搜歌，直接拿走 <span class="grad">MP3</span></h1>
+      <p>登录后每天 10 首免费 MP3 · 超出 10 积分/首 · 无损 50 积分/首</p>
+      <div class="searchbar">
+        <input id="q" type="search" placeholder="歌名 / 歌手，例如：稻香 周杰伦" autocomplete="off">
+        <button class="btn primary" id="btnSearch">搜索</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="starter" id="starter">
+        <span class="starter-label">大家都在搜</span>
+        <button class="sug" data-q="稻香 周杰伦">稻香</button>
+        <button class="sug" data-q="晴天 周杰伦">晴天</button>
+        <button class="sug" data-q="孤勇者 陈奕迅">孤勇者</button>
+        <button class="sug" data-q="起风了">起风了</button>
+        <button class="sug" data-q="光年之外 邓紫棋">光年之外</button>
+        <button class="sug" data-q="漠河舞厅 柳爽">漠河舞厅</button>
+        <button class="sug" data-q="修炼爱情 林俊杰">修炼爱情</button>
+      </div>
+    </div>
+
+    <div class="feats" id="feats">
+      <div class="feat">
+        <span class="n">01</span>
+        <b>一个关键词，全平台一起搜</b>
+        <p>网易云 / QQ音乐 / 酷狗 同时开搜，结果按平台分组，按秒返回</p>
+      </div>
+      <div class="feat">
+        <span class="n">02</span>
+        <b>点一下就开始下载</b>
+        <p>浏览器直连音源，逐首落盘，不用排队等打包</p>
+      </div>
+      <div class="feat">
+        <span class="n">03</span>
+        <b>每天 10 首免费</b>
+        <p>超出后 10 积分一首，无损 50 积分，卡密随时充值</p>
+      </div>
+    </div>
+
+    <div id="searchStatus"></div>
+    <div id="batchBar"></div>
+    <div id="results"></div>
+  </section>
+
+  <section id="tab-playlist" hidden>
+    <div class="hero">
+      <div class="hero-pill"><span class="pulse"></span>逐首计费 · 失败自动退回</div>
+      <h1>粘贴歌单链接，<span class="grad">整单带走</span></h1>
+      <p>支持网易云 / QQ音乐 / 酷狗歌单，解析后一键打包</p>
+    </div>
+    <div class="playlist-box">
+      <div class="card pad">
+        <input id="playlistUrl" class="url-input" placeholder="粘贴歌单链接，如 https://music.163.com/#/playlist?id=123456789">
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
+          <button class="btn primary" id="btnParse" style="flex:0 1 260px">解析歌单</button>
+          <button class="btn" id="btnPaste" style="flex:0 0 auto">粘贴</button>
+        </div>
+        <div class="hint">
+          支持格式：网易云 <code>music.163.com/#/playlist?id=</code>、QQ音乐 <code>y.qq.com/n/ryqq/playlist/</code>、
+          酷狗 <code>kugou.com/yy/special/single/</code>。私密歌单无法解析。
+        </div>
+      </div>
+      <div id="playlistStatus"></div>
+      <div id="playlistResult"></div>
+    </div>
+
+    <div class="feats" id="playlistFeats">
+      <div class="feat">
+        <span class="n">01</span>
+        <b>粘贴链接就完事</b>
+        <p>网易云、QQ 音乐、酷狗的歌单链接直接贴进来，自动识别平台</p>
+      </div>
+      <div class="feat">
+        <span class="n">02</span>
+        <b>解析后逐首挑</b>
+        <p>全选或者只勾想听的那几首，先看清单再决定，不花冤枉积分</p>
+      </div>
+      <div class="feat">
+        <span class="n">03</span>
+        <b>失败自动退积分</b>
+        <p>每首单独结算，哪首没下成功，那首的积分原路退回</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-jobs" hidden>
+    <div class="section-head"><h2>下载任务</h2><span class="meta" id="jobsMeta"></span></div>
+    <div class="card" id="jobsList"></div>
+  </section>
+
+  <footer class="foot">
+    本站仅提供音乐检索与试听辅助，不存储任何音频文件。全部内容版权归各音乐平台及版权方所有，下载仅供个人学习使用，请于 24 小时内删除。<br>
+    请支持正版，购买平台会员。<span id="footSite"></span>
+  </footer>
+</main>
+
+<!-- 登录 / 注册 -->
+<div class="mask" id="authMask" hidden>
+  <div class="modal">
+    <h3 id="authTitle">登录</h3>
+    <div class="sub" id="authSub">登录后可下载，每天有 10 首免费额度</div>
+    <div class="msg" id="authMsg"></div>
+    <div class="field" id="nickField" hidden>
+      <label>昵称（可选）</label>
+      <input id="authNick" type="text" placeholder="怎么称呼你">
+    </div>
+    <div class="field">
+      <label>邮箱</label>
+      <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input id="authPassword" type="password" placeholder="至少 6 位" autocomplete="current-password">
+    </div>
+    <div class="field" id="confirmField" hidden>
+      <label>确认密码</label>
+      <input id="authPassword2" type="password" placeholder="再输入一次密码" autocomplete="new-password">
+    </div>
+    <button class="btn primary" id="authSubmit">登录</button>
+    <div class="switch"><a href="#" id="authSwitch">没有账号？注册</a></div>
+  </div>
+</div>
+
+<!-- 积分 / 卡密 -->
+<div class="mask" id="payMask" hidden>
+  <div class="modal">
+    <h3>积分与卡密</h3>
+    <div class="sub">下载按积分计费，卡密可兑换积分</div>
+    <div class="msg" id="payMsg"></div>
+    <div class="wallet-box" id="payWallet"></div>
+    <div class="rules">
+      <div>每日免费：普通 MP3 <b id="ruleFree">10</b> 首/天（网易云 / 酷狗）</div>
+      <div>超出后：普通 MP3 <b id="ruleMp3">10</b> 积分/首</div>
+      <div>QQ 音乐：需服务端转码，<b id="ruleTc">10</b> 积分/首（不占免费额度）</div>
+      <div>无损 FLAC：<b id="ruleFlac">50</b> 积分/首</div>
+    </div>
+    <div class="field">
+      <label>卡密</label>
+      <input id="payCode" type="text" placeholder="MP3-XXXX-XXXX-XXXX" autocomplete="off">
+    </div>
+    <button class="btn primary" id="btnRedeem">兑换积分</button>
+    <div class="switch"><a href="#" id="payClose">关闭</a></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/assets/id3.js"></script>
+<script src="/assets/app.js"></script>
+</body>
+</html>

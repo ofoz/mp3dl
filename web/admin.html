@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f6fc">
+<title>管理后台 · MP3库</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%236d5efc'/><stop offset='1' stop-color='%23a855f7'/></linearGradient></defs><rect width='100' height='100' rx='26' fill='url(%23g)'/><text x='50' y='73' font-size='56' text-anchor='middle' fill='white'>♪</text></svg>">
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/admin.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="brand">
+      <span class="mark">♪</span>
+      <span class="txt">MP3库</span>
+      <span class="adm-tag">管理后台</span>
+    </div>
+    <nav class="tabs" id="admTabs">
+      <button data-tab="overview" class="active">概览</button>
+      <button data-tab="users">用户</button>
+      <button data-tab="codes">卡密</button>
+      <button data-tab="ledger">流水</button>
+    </nav>
+    <div class="top-right" id="admUser"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 概览 -->
+  <section id="tab-overview" class="tabpane">
+    <div class="stat-grid" id="statGrid"><div class="empty">加载中…</div></div>
+    <div class="card pad sysinfo" id="sysInfo"></div>
+    <div class="card pad block-gap">
+      <div class="card-title">常用操作</div>
+      <div class="quick-links">
+        <button class="btn" data-goto="users">用户与积分</button>
+        <button class="btn" data-goto="codes">生成卡密</button>
+        <button class="btn" data-goto="ledger">查看流水</button>
+        <a class="btn" href="/" target="_blank" rel="noopener">打开前台站点</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 用户 -->
+  <section id="tab-users" class="tabpane" hidden>
+    <div class="card">
+      <div class="toolbar">
+        <input id="userQ" class="tool-input" placeholder="搜邮箱 / 昵称" autocomplete="off">
+        <button class="btn sm" id="btnUserReload">刷新</button>
+        <span class="spacer"></span>
+        <span class="tool-meta" id="userMeta"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="userTable">
+          <thead>
+            <tr>
+              <th style="width:52px">ID</th>
+              <th>邮箱 / 昵称</th>
+              <th style="width:90px">积分</th>
+              <th style="width:96px">今日免费</th>
+              <th style="width:92px">角色</th>
+              <th style="width:70px">状态</th>
+              <th style="width:130px">注册时间</th>
+              <th style="width:130px">最近登录</th>
+              <th style="width:186px">操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="more"><button class="btn sm" id="btnUserMore" hidden>加载更多</button></div>
+    </div>
+  </section>
+
+  <!-- 卡密 -->
+  <section id="tab-codes" class="tabpane" hidden>
+    <div class="card pad">
+      <h2 class="card-title">生成积分卡密</h2>
+      <p class="card-sub">一张卡密对应固定面额，一次性使用；用户在前台「卡密充值」里兑换。</p>
+      <div class="code-form">
+        <div class="field">
+          <label>面额（积分）</label>
+          <input id="codeCredits" type="number" min="1" max="1000000" step="1" value="100">
+        </div>
+        <div class="field">
+          <label>数量（1~100）</label>
+          <input id="codeCount" type="number" min="1" max="100" step="1" value="10">
+        </div>
+        <div class="field grow">
+          <label>备注（可选）</label>
+          <input id="codeNote" type="text" maxlength="40" placeholder="如：淘宝月卡 / 活动赠送">
+        </div>
+        <button class="btn primary" id="btnGenCode">生成</button>
+      </div>
+      <div class="gen-result" id="genResult" hidden>
+        <div class="gen-head">
+          <span>本次生成 <b id="genCount">0</b> 张 · 面额 <b id="genCredits">0</b> 积分</span>
+          <span class="spacer"></span>
+          <button class="btn sm" id="btnCopyCodes">复制全部</button>
+          <button class="btn sm" id="btnSaveCodes">下载 TXT</button>
+        </div>
+        <pre class="codebox" id="genCodes"></pre>
+      </div>
+    </div>
+
+    <div class="card block-gap">
+      <div class="toolbar">
+        <b>卡密记录</b>
+        <span class="spacer"></span>
+        <label class="checkline"><input type="checkbox" id="onlyUnused"> 只看未使用</label>
+        <button class="btn sm" id="btnCodeReload">刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="codeTable">
+          <thead>
+            <tr>
+              <th>卡密</th>
+              <th style="width:90px">面额</th>
+              <th style="width:90px">状态</th>
+              <th style="width:200px">使用者</th>
+              <th style="width:130px">创建时间</th>
+              <th style="width:130px">使用时间</th>
+              <th style="width:150px">备注</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 流水 -->
+  <section id="tab-ledger" class="tabpane" hidden>
+    <div class="card">
+      <div class="toolbar">
+        <b>积分流水</b>
+        <span class="spacer"></span>
+        <select id="ledgerLimit" class="tool-input select">
+          <option value="100">最近 100 条</option>
+          <option value="200">最近 200 条</option>
+          <option value="500">最近 500 条</option>
+        </select>
+        <button class="btn sm" id="btnLedgerReload">刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="ledgerTable">
+          <thead>
+            <tr>
+              <th style="width:130px">时间</th>
+              <th style="width:220px">用户</th>
+              <th style="width:100px">类型</th>
+              <th style="width:90px">变动</th>
+              <th style="width:90px">余额</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <footer class="foot">MP3库 · 管理后台 · 数据实时读自本站数据库</footer>
+</main>
+
+<!-- 调整积分 -->
+<div class="mask" id="creditMask" hidden>
+  <div class="modal">
+    <h3>调整积分</h3>
+    <div class="sub" id="creditSub"></div>
+    <div class="msg" id="creditMsg"></div>
+    <div class="field">
+      <label>变动数量（正数增加，负数扣减）</label>
+      <input id="creditAmount" type="number" step="1" value="100">
+    </div>
+    <div class="quick-row">
+      <button class="btn sm" data-quick="10">+10</button>
+      <button class="btn sm" data-quick="50">+50</button>
+      <button class="btn sm" data-quick="100">+100</button>
+      <button class="btn sm" data-quick="500">+500</button>
+      <button class="btn sm" data-quick="-10">-10</button>
+    </div>
+    <button class="btn primary" id="btnCreditSubmit">确认调整</button>
+    <div class="switch"><a href="#" id="creditClose">取消</a></div>
+  </div>
+</div>
+
+<!-- 未登录 / 无权限 -->
+<div class="guard" id="guard" hidden>
+  <div class="card pad guard-box">
+    <div class="guard-ic">🔒</div>
+    <h2 id="guardTitle">需要管理员权限</h2>
+    <p id="guardText">请先用管理员账号登录。</p>
+    <a class="btn primary" href="/">回到首页登录</a>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/assets/admin.js"></script>
+</body>
+</html>
