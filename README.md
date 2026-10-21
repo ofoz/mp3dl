@@ -176,7 +176,8 @@ set -a && source .env && set +a                      # bash
 # Windows PowerShell: 自己 $env:MP3DL_XXX="..."，或直接写系统环境变量
 
 # 3. 启动
-../.venv/Scripts/python run.py      # http://127.0.0.1:8080
+../.venv/Scripts/python run.py      # Windows  → http://127.0.0.1:8080
+# ../.venv/bin/python run.py        # Linux / macOS
 ```
 
 管理员账号由 `MP3DL_ADMIN_EMAIL` / `MP3DL_ADMIN_PASSWORD` 在**首次启动时**创建。
@@ -441,13 +442,26 @@ curl -b ck.txt localhost:8080/api/admin/stats
 
 ```bash
 cd mp3dl
+pip install -r requirements.txt        # 首次
 
-../.venv/Scripts/python tests/test_security.py    # 26 项安全检查
-../.venv/Scripts/python tests/test_billing.py     # 计费 / 免费额度 / 退款幂等
-../.venv/Scripts/python tests/test_delivery.py    # ZIP 与单曲交付
-../.venv/Scripts/python tests/test_batch.py       # 批量提交与整单算账
-../.venv/Scripts/python tests/test_batch_direct.py # 批量直连预取
+python tests/test_security.py          # 安全检查（缓存表有数据时 26 项，表空则跳过 4 项）
+python tests/test_billing.py           # 计费 / 免费额度 / 退款幂等
+python tests/test_delivery.py          # ZIP 与单曲交付
+python tests/test_batch.py             # 批量提交与整单算账
+python tests/test_batch_direct.py      # 批量直连预取
 ```
+
+需要管理员身份的用例（生成卡密、管理员自我保护、真实冒烟）从环境变量取凭据，**代码里不存任何账号密码**：
+
+```bash
+export MP3DL_TEST_ADMIN_EMAIL=admin@mp3dl.local
+export MP3DL_TEST_ADMIN_PASSWORD='你的管理员密码'
+
+python tests/test_security.py          # 第 9 节才会真正执行
+python tests/smoke_live.py             # 需要服务已在运行
+```
+
+未设置时这些用例打印 `skip` 后跳过，不计为失败。
 
 | 文件 | 覆盖内容 |
 |---|---|
@@ -459,8 +473,8 @@ cd mp3dl
 另外两个脚本需要服务已在运行：
 
 ```bash
-../.venv/Scripts/python tests/smoke_live.py    # 真实端口冒烟：搜索 -> 下载 -> 扣费
-../.venv/Scripts/python tests/sec_probe.py     # 只读攻击面探测（不改数据）
+python tests/smoke_live.py    # 真实端口冒烟：搜索 -> 下载 -> 扣费
+python tests/sec_probe.py     # 只读攻击面探测（不改数据）
 ```
 
 > 测注册相关用例时注意：注册接口按 IP 每日限 3 次，测试脚本必须给每次注册分配独立
@@ -493,9 +507,9 @@ docker compose up -d
 `tools/clean_test_data.py` 用于把站点重置成「只剩管理员」的干净状态：
 
 ```bash
-../.venv/Scripts/python tools/clean_test_data.py             # 预览，只打印不落地
-../.venv/Scripts/python tools/clean_test_data.py --yes       # 自动备份后执行
-../.venv/Scripts/python tools/clean_test_data.py --yes --keep-cache   # 保留音频缓存
+python tools/clean_test_data.py             # 预览，只打印不落地
+python tools/clean_test_data.py --yes       # 自动备份后执行
+python tools/clean_test_data.py --yes --keep-cache   # 保留音频缓存
 ```
 
 它做的事：备份数据库到 `storage/backups/` → 单事务删掉非管理员用户及其关联数据
