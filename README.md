@@ -133,7 +133,7 @@
 | 歌单批量 ZIP | 逐首按上表累加，失败的曲目自动退回 | — |
 
 - 免费额度按**账号 + 自然日（东八区）**计，默认 `MP3DL_FREE_DAILY=10`，次日 0 点重置；
-- 计费在 `services/pricing.py`：`charge()` 扣权益、`refund()` / `refund_ref()` 退回。
+- 计费在 `app/services/pricing.py`：`charge()` 扣权益、`refund()` / `refund_ref()` 退回。
   免费额度用 `free_quota` 表的原子自增守住上限，积分用 `UPDATE ... WHERE credits>=?`
   保证不扣成负数；
 - 扣费时机：直连/无损在**确认能给出通道后**才扣；任务型下载先扣、曲目失败自动退回；
@@ -148,16 +148,14 @@ IP 维度日曲目总量上限。内网自用可整体关掉计费：`MP3DL_BILL
 
 ## 快速开始
 
-### 前置：musicdl 源码
+### 前置：无需额外准备音源库
 
-musicdl **不通过 pip 安装**，是以源码方式 import 的（`app/services/musicdl_env.py` 负责注入
-`sys.path`）。目录必须是同级：
+musicdl **不通过 pip 安装**，是以源码方式 import 的（`app/services/musicdl_env.py`
+负责把它注入 `sys.path`）。这个库已经随仓库放在 `vendor/musicdl`（2.4MB，
+官方包里 45MB 的 `docs` 和 9MB 的 `examples` 没有带），clone 下来就能直接跑。
 
-```
-workspace/
-├── musicdl-src/     <- musicdl 源码
-└── mp3dl/           <- 本项目
-```
+> 兼容旧布局：若仓库内没有 `vendor/musicdl`，程序会去找同级目录的 `musicdl-src/`。
+> 只有你自己想换一份 musicdl 源码时才需要动它。
 
 ### 本地运行
 
@@ -188,7 +186,10 @@ set -a && source .env && set +a                      # bash
 
 ### Docker
 
+仓库是公开的，`git clone` 不需要凭据：
+
 ```bash
+git clone https://github.com/ofoz/mp3dl.git
 cd mp3dl
 cp .env.example .env        # 至少改 MP3DL_SECRET 和管理员两项
 docker compose up -d --build
@@ -203,7 +204,7 @@ docker compose up -d --build
 
 > **容器里用 `gunicorn -w 1`，不要加 worker。** 曲目直链缓存、任务队列、转码线程池
 > 全都在进程内，多 worker 会各自为政：缓存命中不了、任务进度互相看不见。
-> 需要横向扩展时，先把 `services/jobs.py` 的任务消费挪到独立进程。
+> 需要横向扩展时，先把 `app/services/jobs.py` 的任务消费挪到独立进程。
 
 容器只监听 `127.0.0.1:9080`，由宿主上的 OpenResty 终止 TLS 并反代。
 
@@ -351,7 +352,7 @@ curl -b ck.txt localhost:9080/api/admin/stats
 2. 目标域名必须在白名单内（内置网易云/QQ/酷狗/酷我/migu 等 CDN，可用 `MP3DL_COVER_HOSTS` 追加）；
 3. 解析后的 IP 拒绝回环 / 私网 / 链路本地 / 保留 / 组播地址，且**禁止跟随重定向**。
 
-`services/direct.py` 的 CORS 探测同样只对公网地址发起。
+`app/services/direct.py` 的 CORS 探测同样只对公网地址发起。
 
 ### 计费与状态机
 
@@ -556,7 +557,7 @@ python tools/clean_test_data.py --yes --keep-cache   # 保留音频缓存
 ## 已知限制
 
 1. **平台接口随时会变**：音乐平台经常改签名/风控。某个平台挂了先看 `/api/health`，
-   把 `services/platforms.py` 里 `PLATFORMS` 对应条目的 `default`（不再默认选中）
+   把 `app/services/platforms.py` 里 `PLATFORMS` 对应条目的 `default`（不再默认选中）
    或 `enabled`（彻底下线）关掉即可，不影响其它平台。
 2. **搜索耗时取决于平台**：实测网易云 9s、酷狗 27s、QQ 45~110s。前端用 SSE 逐平台返回，
    慢的平台不会拖住整页。每个平台可单独配超时（`PLATFORMS[key]["timeout"]`）。
