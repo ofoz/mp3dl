@@ -40,8 +40,12 @@ class Config:
     # 默认落在工作目录下会无限膨胀，统一收到 storage 里并定期清掉。
     MUSICDL_WORK_DIR = Path(_env("MP3DL_MUSICDL_DIR", str(STORAGE_DIR / "musicdl")))
 
-    # musicdl 源码位置（vendor）
-    MUSICDL_SRC = Path(_env("MUSICDL_SRC", str(WORKSPACE / "musicdl-src")))
+    # musicdl 源码位置（vendor）：仓库自带的 vendor/ 优先，
+    # 兼容旧布局（同级目录 musicdl-src），也可用 MUSICDL_SRC 显式指定
+    MUSICDL_SRC = Path(_env("MUSICDL_SRC", str(
+        BASE_DIR / "vendor" if (BASE_DIR / "vendor" / "musicdl").is_dir()
+        else WORKSPACE / "musicdl-src"
+    )))
 
     # 搜索
     SEARCH_SIZE_PER_SOURCE = _env("MP3DL_SEARCH_SIZE", 6, int)

@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Config
 from . import db, ratelimit, security
@@ -134,6 +135,12 @@ def create_app():
     app.config["JSON_AS_ASCII"] = False
     app.json.ensure_ascii = False
     app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+
+    # 反向代理后修正 scheme：只取 X-Forwarded-Proto，
+    # 让 request.is_secure 在 HTTPS 站下为真（Cookie 才会带 Secure）。
+    # 刻意不接管 X-Forwarded-For —— 客户端 IP 仍由 security.client_ip()
+    # 按可信代理白名单从右往左解析，避免重新引入可绕过的来源。
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0, x_port=0, x_prefix=0)
 
     @app.before_request
     def _load_user():

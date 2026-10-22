@@ -88,9 +88,14 @@ def plan(conn):
     """返回 [(说明, SQL, 参数)]，预览与执行共用同一份逻辑。"""
     ids = admins(conn)
     marks = ",".join("?" * len(ids)) or "0"
+    # 不同版本的库未必建了 WIPE_TABLES 里的全部表（例如 vip_codes 在精简库里没有），
+    # 只对实际存在的表生成 DELETE，否则全新部署第一次执行会 no such table。
+    existing = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
     steps = []
     for t in WIPE_TABLES:
-        steps.append((f"{t} 全部清空", f"DELETE FROM {t}", ()))
+        if t in existing:
+            steps.append((f"{t} 全部清空", f"DELETE FROM {t}", ()))
     # 非管理员会话全删；管理员只留最近几条（用户最后一次登录必然在其中）
     steps.append((
         "sessions 清掉测试会话",

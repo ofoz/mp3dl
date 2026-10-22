@@ -1,0 +1,25 @@
+# 构建上下文不需要的东西一律排除，避免把密钥和运行期数据烤进镜像层
+.git
+.gitignore
+.gitattributes
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行期数据（挂载卷提供）
+storage/
+musicdl_outputs/
+samples/
+
+# 本地配置：绝不能进镜像
+.env
+.env.*
+!.env.example
+
+# 非运行必需（tools 要保留：容器内需要 clean_test_data.py 清理数据）
+ui/
+tests/
+*.md
+*.png
+*.db

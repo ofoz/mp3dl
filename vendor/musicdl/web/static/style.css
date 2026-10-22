@@ -1,0 +1,305 @@
+/* SoundFlow 小清新治愈风格专属样式表 (Fresh Mint & Linen Oasis) */
+
+/* 0. 移动端防自动缩放规则 (iOS Safari 规定字号 >= 16px 时不缩放页面) */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* 1. 自定义精致小清新滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.7);
+}
+
+/* 2. 选项卡激活样式 (清新翡翠绿) */
+.tab-btn.active {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
+}
+
+/* 3. 音源马卡龙 Chip 胶囊样式 */
+.source-pill {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+.source-pill.active {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.12);
+}
+.source-pill.inactive {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+  opacity: 0.85;
+}
+.source-pill.inactive:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* 4. 歌曲行轻柔悬浮 */
+.track-row {
+  transition: background-color 0.15s ease;
+}
+.track-row:hover {
+  background-color: rgba(240, 253, 244, 0.65);
+}
+.track-row.playing {
+  background-color: rgba(236, 253, 245, 0.9);
+  border-left: 3px solid #10b981;
+}
+
+/* 5. 侧栏抽屉歌词行 */
+.lyric-line {
+  transition: all 0.25s ease;
+  opacity: 0.45;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  cursor: pointer;
+  color: #334155;
+}
+.lyric-line:hover {
+  opacity: 0.8;
+  color: #059669;
+}
+.lyric-line.active {
+  opacity: 1;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #059669;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+  transform: scale(1.03);
+}
+
+/* 6. 表格布局防换行固化 */
+table.table-fixed {
+  table-layout: fixed !important;
+}
+
+table th, table td {
+  box-sizing: border-box;
+}
+
+th.whitespace-nowrap, td.whitespace-nowrap {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+/* 7. 全屏沉浸黑胶大播放器 (清新文艺黑胶视效) */
+#fullscreenPlayer {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease;
+}
+
+#fullscreenPlayer.player-open {
+  transform: translateY(0) !important;
+}
+
+/* 黑胶唱片本体 (小清新复古深青光泽) */
+.vinyl-disc {
+  background: radial-gradient(circle, #2d3748 0%, #1a202c 100%);
+  border: 10px solid #1a202c;
+  box-shadow: 0 20px 45px -10px rgba(16, 185, 129, 0.18), 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+
+.vinyl-grooves {
+  background: repeating-radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.08) 0px,
+    rgba(255, 255, 255, 0.08) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+}
+
+@keyframes spinDisc {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-playing {
+  animation: spinDisc 20s linear infinite;
+}
+
+.spin-paused {
+  animation-play-state: paused;
+}
+
+/* 唱针动画 */
+.needle-playing {
+  transform: rotate(0deg) !important;
+}
+
+.needle-paused {
+  transform: rotate(-25deg) !important;
+}
+
+/* 歌词框四周柔和颜色渐变与无死角自然消融 */
+.fs-lyric-box {
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 50%,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(255, 255, 255, 0.4) 48%,
+    rgba(240, 253, 244, 0.18) 75%,
+    transparent 100%
+  );
+  box-shadow: 0 10px 40px -10px rgba(16, 185, 129, 0.08);
+  border-radius: 2.5rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* PC 桌面端大播放器歌词容器精准控制在 5-6 行可视高度，极简聚焦与呼吸感 */
+@media (min-width: 1024px) {
+  .fs-lyric-box {
+    height: 310px !important;
+    max-height: 310px !important;
+    min-height: 310px !important;
+  }
+}
+
+/* 核心：基于 Alpha 通道 CSS Mask 实现四周上下绝对平滑的渐隐消融，绝不产生硬切色块 */
+.fs-lyric-scroll {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.2) 6%,
+    rgba(0, 0, 0, 0.85) 18%,
+    black 28%,
+    black 72%,
+    rgba(0, 0, 0, 0.85) 82%,
+    rgba(0, 0, 0, 0.2) 94%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.2) 6%,
+    rgba(0, 0, 0, 0.85) 18%,
+    black 28%,
+    black 72%,
+    rgba(0, 0, 0, 0.85) 82%,
+    rgba(0, 0, 0, 0.2) 94%,
+    transparent 100%
+  );
+}
+
+/* 全屏沉浸歌词 (极简纯字流：纯净文字排版，无多余胶囊修饰) */
+.fs-lyric-line {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #94a3b8;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  padding: 3px 8px;
+  display: inline-block;
+  max-width: 95%;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 640px) {
+  .fs-lyric-line {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    padding: 5px 12px;
+  }
+}
+
+.fs-lyric-line:hover {
+  color: #10b981;
+}
+
+/* 正在播放行：纯粹变色高亮，无胶囊边框无背景，字字清晰 */
+.fs-lyric-active {
+  font-size: 0.9375rem !important;
+  font-weight: 700 !important;
+  color: #059669 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  padding: 3px 8px !important;
+  transform: none !important;
+}
+
+@media (min-width: 640px) {
+  .fs-lyric-active {
+    font-size: 1.15rem !important;
+    padding: 5px 12px !important;
+  }
+}
+
+/* 隐蔽且雅致的微晶滚动条，常态低透明，悬浮时平滑唤出 */
+.fs-lyric-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.fs-lyric-scroll::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.fs-lyric-box:hover .fs-lyric-scroll::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.38);
+}
+
+.fs-lyric-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 8. 歌单卡片与动效 */
+.playlist-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.playlist-card:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 15px -2px rgba(16, 185, 129, 0.08);
+}
+
+.playlist-track-item:hover {
+  background-color: rgba(240, 253, 244, 0.7);
+}
+
+/* 9. 扫码激光线动效 */
+@keyframes scanLineAnim {
+  0% { top: 6px; }
+  50% { top: calc(100% - 8px); }
+  100% { top: 6px; }
+}
+
+.animate-pulse-line {
+  position: absolute;
+  animation: scanLineAnim 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* 10. 歌单重命名按钮轻柔微动效 */
+.pl-rename-btn {
+  transition: all 0.15s ease;
+}
+.pl-rename-btn:hover {
+  transform: scale(1.1);
+}

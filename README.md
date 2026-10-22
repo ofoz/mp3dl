@@ -190,18 +190,22 @@ set -a && source .env && set +a                      # bash
 
 ```bash
 cd mp3dl
-cp .env.example .env        # 改好密钥
+cp .env.example .env        # 至少改 MP3DL_SECRET 和管理员两项
 docker compose up -d --build
 ```
 
-构建上下文是**工作区根目录**（需要把 `musicdl-src` 一起打进镜像），
-`docker-compose.yml` 已经按这个约定写好 `context: ..`。
+构建上下文就是 **mp3dl 目录本身**：音源解析库已收进 `vendor/musicdl`，
+`git clone` 下来即可构建，不依赖工作区里的兄弟目录。
+
+生产部署（1Panel + OpenResty + HTTPS + 域名）的完整步骤见
+**[deploy/DEPLOY.md](deploy/DEPLOY.md)**，反向代理模板见
+[deploy/openresty-mp3.dbas.fun.conf](deploy/openresty-mp3.dbas.fun.conf)。
 
 > **容器里用 `gunicorn -w 1`，不要加 worker。** 曲目直链缓存、任务队列、转码线程池
 > 全都在进程内，多 worker 会各自为政：缓存命中不了、任务进度互相看不见。
 > 需要横向扩展时，先把 `services/jobs.py` 的任务消费挪到独立进程。
 
-服务只监听 `127.0.0.1:8080`，建议前面挂 OpenResty / Nginx 上 HTTPS。
+容器只监听 `127.0.0.1:8080`，由宿主上的 OpenResty 终止 TLS 并反代。
 
 ---
 
@@ -225,15 +229,19 @@ mp3dl/
 │       ├── direct.py        直连令牌（HMAC 签名 + 15 分钟有效期）
 │       ├── playlists.py     歌单链接解析（异步任务）
 │       ├── jobs.py          任务队列 + 进度 + ZIP 打包
-│       └── musicdl_env.py   把 musicdl-src 注入 sys.path
+│       └── musicdl_env.py   把 vendor/musicdl 注入 sys.path
 ├── web/                     前端（原生 JS + 纯 CSS，无 CDN、无构建）
 │   ├── index.html           站点首页
 │   ├── admin.html           管理后台（/admin）
 │   └── assets/              app.js / id3.js / admin.js / style.css / admin.css
+├── vendor/musicdl/          音源解析库源码（以 import 方式引入，不 pip 安装）
+├── deploy/                  DEPLOY.md 部署手册 + OpenResty 反代配置模板
 ├── tests/                   回归测试（Flask test_client，不依赖外网）
 ├── tools/clean_test_data.py 清库脚本（保留管理员）
 ├── ui/                      README 用的界面截图
 ├── storage/                 SQLite / 音频缓存 / 临时文件（可用卷挂载出来）
+├── Dockerfile               构建上下文 = 本目录
+├── docker-compose.yml       单容器编排（只绑 127.0.0.1:8080）
 └── run.py
 ```
 

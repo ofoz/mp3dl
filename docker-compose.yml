@@ -1,31 +1,33 @@
 services:
   mp3dl:
     build:
-      context: ..
-      dockerfile: mp3dl/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     image: mp3dl:latest
     container_name: mp3dl
     restart: unless-stopped
+
+    # 所有配置集中放 .env（与 README 的配置项同名），不写进 compose 文件
+    env_file:
+      - .env
+
+    environment:
+      TZ: Asia/Shanghai
+
+    ports:
+      # 只绑宿主回环，公网流量必须经 OpenResty 进来（终止 TLS、限流、日志）
+      - "127.0.0.1:8080:8080"
+
+    volumes:
+      # 数据库、缓存音频、直链密钥、备份都在这里，务必持久化
+      - ./storage:/app/mp3dl/storage
+
     dns:
       - 223.5.5.5
       - 119.29.29.29
-    ports:
-      # 建议只绑本地，由 OpenResty / Nginx 反代并上 HTTPS
-      - "127.0.0.1:8080:8080"
-    volumes:
-      - ./storage:/app/mp3dl/storage
-    environment:
-      - TZ=Asia/Shanghai
-      - MP3DL_SECRET=${MP3DL_SECRET:-please-change-this-secret}
-      - MP3DL_ADMIN_EMAIL=${MP3DL_ADMIN_EMAIL:-}
-      - MP3DL_ADMIN_PASSWORD=${MP3DL_ADMIN_PASSWORD:-}
-      - MP3DL_SITE_NAME=${MP3DL_SITE_NAME:-MP3库}
-      - MP3DL_JOB_WORKERS=${MP3DL_JOB_WORKERS:-3}
-      - MP3DL_MAX_PLAYLIST=${MP3DL_MAX_PLAYLIST:-200}
-      - MP3DL_CACHE_MAX_GB=${MP3DL_CACHE_MAX_GB:-20}
-      - MP3DL_CACHE_TTL_HOURS=${MP3DL_CACHE_TTL_HOURS:-48}
+
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "20m"
         max-file: "3"
