@@ -110,8 +110,9 @@ MP3DL_PRICE_FLAC=50
 MP3DL_TZ_OFFSET=8
 
 # ---------- 缓存 ----------
-MP3DL_CACHE_TTL_HOURS=48
+# 单曲缓存保留时长（小时），从最后一次被下载起算；后台每 30 分钟清理一次
 MP3DL_FILE_KEEP_HOURS=24
+# 缓存总容量上限（GB），超了按 LRU 删到 80%
 MP3DL_CACHE_MAX_GB=20
 
 # ---------- 限流（每 IP）----------
@@ -269,5 +270,5 @@ du -sh /opt/mp3dl/storage/cache
 - **不要**把 `ports` 改成 `"8080:8080"`。一旦容器直接暴露公网，`X-Forwarded-For` 就变可伪造，限流和审计全部失效。
 - **不要**给 gunicorn 加 worker（`-w 2` 及以上）。任务队列、缓存索引、限流计数都在进程内存，多进程会导致重复扣费、任务状态错乱。
 - 1Panel 的「防火墙」只放行 80/443，`8080` 保持仅回环。
-- 缓存上限 `MP3DL_CACHE_MAX_GB` 按磁盘余量设，超了会按 LRU 清理；`MP3DL_CACHE_TTL_HOURS` 控制单曲缓存保留时长。
+- 缓存上限 `MP3DL_CACHE_MAX_GB` 按磁盘余量设，超了会按 LRU 清理；`MP3DL_FILE_KEEP_HOURS`（默认 24）控制单曲缓存从最后一次被下载起保留多久。
 - 定期检查 `storage/mp3dl.db` 体积；若是长期运行后明显膨胀，停服执行一次 `VACUUM`。

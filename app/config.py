@@ -17,6 +17,23 @@ def _env(key, default=None, cast=str):
     return val
 
 
+def _file_keep_hours():
+    """单曲缓存的保留时长（小时）。
+
+    以「最后一次被下载」为起点计算，不是首次生成时间。
+    兼容历史变量 MP3DL_CACHE_TTL_HOURS：早期文档写的是这个名字，
+    但它从来没有真正接到清理逻辑上（改了不起作用），这里做一次回退，
+    免得老 .env 里的值被静默忽略。
+    """
+    raw = os.environ.get("MP3DL_FILE_KEEP_HOURS", "").strip()
+    if raw.isdigit():
+        return int(raw)
+    legacy = os.environ.get("MP3DL_CACHE_TTL_HOURS", "").strip()
+    if legacy.isdigit():
+        return int(legacy)
+    return 24
+
+
 class Config:
     # 服务
     HOST = _env("MP3DL_HOST", "127.0.0.1")
@@ -60,9 +77,11 @@ class Config:
     MP3_BITRATE = _env("MP3DL_MP3_BITRATE", 320, int)
 
     # 缓存清理
-    CACHE_TTL_HOURS = _env("MP3DL_CACHE_TTL_HOURS", 48, int)
+    # FILE_KEEP_HOURS 是唯一的「单曲缓存保留时长」开关，从最后一次下载算起。
     CACHE_MAX_GB = _env("MP3DL_CACHE_MAX_GB", 20, int)
-    FILE_KEEP_HOURS = _env("MP3DL_FILE_KEEP_HOURS", 24, int)
+    FILE_KEEP_HOURS = _file_keep_hours()
+    # 旧名别名，值恒等于 FILE_KEEP_HOURS，仅为兼容外部脚本引用。
+    CACHE_TTL_HOURS = FILE_KEEP_HOURS
 
     # 限流（每 IP）
     RL_SEARCH_PER_MIN = _env("MP3DL_RL_SEARCH", 20, int)

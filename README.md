@@ -424,8 +424,7 @@ curl -b ck.txt localhost:8080/api/admin/stats
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `MP3DL_CACHE_TTL_HOURS` | 48 | 缓存保留时长 |
-| `MP3DL_FILE_KEEP_HOURS` | 24 | 用户可下载的文件保留时长 |
+| `MP3DL_FILE_KEEP_HOURS` | 24 | 单曲缓存保留时长，从最后一次被下载起算 |
 | `MP3DL_CACHE_MAX_GB` | 20 | 缓存容量上限（超了按 LRU 删） |
 | `MP3DL_RL_SEARCH` | 20 | 每 IP 每分钟搜索次数 |
 | `MP3DL_RL_DOWNLOAD` | 10 | 每 IP 每分钟下载请求数 |
@@ -528,8 +527,29 @@ python tools/clean_test_data.py --yes --keep-cache   # 保留音频缓存
 
 ### 缓存清理
 
-`pipeline.cleanup_cache()` 会按 `MP3DL_CACHE_TTL_HOURS` / `MP3DL_CACHE_MAX_GB` 回收，
-App 启动时和定时任务都会跑。手动清空直接删 `storage/cache/` 下内容即可，目录本身留着。
+用户下载留下的音频文件落在 `storage/cache/<sha1 前两位>/`，由后台守护线程
+`_cleanup_loop()` 每 **30 分钟**调一次 `pipeline.cleanup_cache()` 回收：
+
+| 对象 | 位置 | 保留时长 | 说明 |
+|---|---|---|---|
+| 单曲音频（mp3/flac） | `storage/cache/` | `MP3DL_FILE_KEEP_HOURS`（默认 **24 小时**） | 从**最后一次被下载**（`last_access`）起算，不是首次生成时间；命中缓存会刷新计时 |
+| 打包 ZIP | `storage/tmp/zip/` | **1 小时** | 正常响应结束即删，这是「发到一半断线」的兜底 |
+| 下载临时文件 | `storage/tmp/*.src` | **立即** | 下载/转码完成在 `finally` 里删，失败也不留 |
+| musicdl 搜索缓存 | `storage/musicdl/` | **6 小时** | 库自身的 `search_results.pkl`，本站不用；启动时也会清一次 |
+| 限流计数 | 数据库 `rate_events` | **7 天** | 每轮清理顺带 GC |
+
+超出 `MP3DL_CACHE_MAX_GB`（默认 20GB）时，按 `last_access` 升序（最久未访问优先）
+删到上限的 80% 为止。
+
+因为清理是每 30 分钟一轮的轮询，实际删除时间是「**保留时长 + 最多 30 分钟**」——
+即默认情况下文件在最后一次下载后 **24~24.5 小时**之间消失。
+
+缓存超过保留期的直接后果：用户再点这首歌要重新走一次云端下载与扣费（`/api/files/<token>`
+返回 404「文件已过期，请重新下载」）。想延长就调大 `MP3DL_FILE_KEEP_HOURS`；
+手动清空直接删 `storage/cache/` 下内容即可，目录本身留着（写入时会自动重建）。
+
+> 旧变量 `MP3DL_CACHE_TTL_HOURS` 在早期版本里只写进了文档、从未接入清理逻辑（改了不起作用）。
+> 现在它作为回退值保留：没设 `MP3DL_FILE_KEEP_HOURS` 时才会读它。新部署请只用后者。
 
 ---
 
