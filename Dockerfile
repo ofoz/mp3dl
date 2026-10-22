@@ -2,7 +2,10 @@
 #   docker build -t mp3dl .
 #   docker compose up -d --build
 
-FROM python:3.11-slim
+# Python 版本必须与开发环境一致（本地 .venv 是 3.13）。
+# 曾用 3.11 导致 puremagic 2.x 无法安装（它要求 >=3.12），
+# 因为「本地能装、镜像装不上」的根源就是解释器版本不一致。
+FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

@@ -44,7 +44,7 @@ mp3dl 容器（gunicorn 单进程 16 线程，UID 1000）
 
 | 项目     | 要求                                                  | 检查命令                                                        |
 | ------ | --------------------------------------------------- | ----------------------------------------------------------- |
-| 系统     | Linux x86_64 / aarch64（镜像基于 `python:3.11-slim` 多架构） | `uname -m`                                                  |
+| 系统     | Linux x86_64 / aarch64（镜像基于 `python:3.13-slim` 多架构） | `uname -m`                                                  |
 | Docker | 20.10+，含 compose 插件                                 | `docker compose version`                                    |
 | 内存     | 1GB 起，建议 2GB                                        | `free -h`                                                   |
 | 磁盘     | 系统 2GB + 缓存余量（默认上限 20GB）                            | `df -h /opt`                                                |
@@ -304,6 +304,35 @@ RUN pip install --no-cache-dir --no-index --find-links=wheelhouse -r requirement
 
 > 构建成功后 `pip install` 那一层会被缓存，后续改代码重建不会再联网，所以这个问题通常只需要解决一次。
 
+### 5.2 构建报 `requires a different python version`
+
+```
+ERROR: Ignored the following versions that require a different python version:
+       2.0.0 Requires-Python >=3.12; 2.2.0 Requires-Python >=3.12
+ERROR: Could not find a version that satisfies the requirement puremagic<3,>=2.1
+```
+
+这是**解释器版本太旧**：某个包的新版本抬高了 `Requires-Python` 下限，而镜像里的 Python 达不到。注意 pip 的措辞有误导性——它最后说 `from versions: 1.2, 1.3, ... 1.30`，看着像“包不存在”，实际是“2.x 全都要求 ≥3.12，你的 3.11 用不了”。
+
+本仓库的约定：**镜像 Python 版本必须和开发环境的 `.venv` 一致**（当前都是 3.13）。改动方式：
+
+```dockerfile
+FROM python:3.13-slim      # 想换版本只改这一行，并同步 requirements 的兼容性
+```
+
+升级前建议先确认依赖都有对应轮子，避免落到源码编译（slim 镜像里没有 gcc / ffmpeg 头文件）：
+
+```bash
+# 在开发机上验证某个 Python 版本能否解析全部依赖（不真正下载）
+pip download -r requirements.txt --no-deps --only-binary=:all: \
+    --platform manylinux2014_x86_64 --python-version 3.13 -d /tmp/probe
+```
+
+`av` 和 `cryptography` 发布的是 `cp311-abi3` 稳定 ABI 轮子，3.11~3.13 通用；`lxml` / `orjson` / `Pillow` / `pycryptodome` / `Brotli` 都有 cp313 的 manylinux 轮子。
+
+> `requirements.txt` 里版本区间按 **Python ≥ 3.11 都能装**来写（例如 `puremagic>=1.28,<3`：3.13 上装 2.x，3.11 上自动落到 1.30），这样即使临时把镜像降回 3.11 也不会构建失败。
+
+
 
 ---
 
@@ -481,6 +510,7 @@ docker stats mp3dl --no-stream         # CPU / 内存 / 网络
 | 搜索 / 打包 504                              | `proxy_read_timeout` 太短                              | 调到 300s，并确认 gunicorn `--timeout 180`                                  |
 | 容器反复重启，日志 `unable to open database file` | `storage` 属主不是 1000                                  | `chown -R 1000:1000 storage`                                          |
 | 启动报 `ModuleNotFoundError: musicdl`       | `vendor/` 没传完整                                       | 确认 `vendor/musicdl/__init__.py` 存在                                    |
+| 构建报 `Ignored the following versions that require a different python version` | 镜像 Python 版本低于依赖要求 | 见 [5.2](#52-构建报-requires-a-different-python-version)，镜像与 `.venv` 版本对齐 |
 | 构建时 `pip install` 报 `Temporary failure in name resolution` | 构建容器 DNS 不通，compose 的 `dns:` 不管构建期 | 见 [5.1](#51-构建卡在-pip-install-报-dns-失败)，`build.network: host` + dockerd 配 DNS |
 | 搜索全部平台超时                                 | 容器 DNS 不稳                                            | 确认 compose 的 `dns: 223.5.5.5 / 119.29.29.29` 生效，或换 `8.8.8.8`          |
 | 封面不显示                                    | 目标 CDN 不在白名单                                         | 域名后缀加进 `MP3DL_COVER_HOSTS`                                            |
