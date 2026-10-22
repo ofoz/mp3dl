@@ -69,17 +69,17 @@ check("SECRET_KEY 已不是示例值",
 check("SECRET_KEY 长度 >= 24", len(Config.SECRET_KEY) >= 24, len(Config.SECRET_KEY))
 
 print("== 2. /api/cover 未授权 SSRF ==")
-token = direct.issue("http://127.0.0.1:8080/api/platforms", "x", "x", "x")
+token = direct.issue("http://127.0.0.1:9080/api/platforms", "x", "x", "x")
 r = c.get(f"/api/cover/{token}", environ_base=PUBLIC_IP)
 check("未登录访问封面代理 -> 401", r.status_code == 401, r.status_code)
 
 print("== 3. 伪造令牌 ==")
-forged = direct._b64encode(b'{"u":"http://127.0.0.1:8080/api/platforms","e":9999999999}.')
+forged = direct._b64encode(b'{"u":"http://127.0.0.1:9080/api/platforms","e":9999999999}.')
 check("换密钥后旧伪造令牌校验失败", direct.verify(forged + "." + "A" * 32) is None)
 
 print("== 4. 封面白名单 ==")
 for url, want in (
-    ("http://127.0.0.1:8080/api/platforms", False),
+    ("http://127.0.0.1:9080/api/platforms", False),
     ("http://169.254.169.254/latest/meta-data/", False),
     ("http://10.0.0.5/x.jpg", False),
     ("file:///etc/passwd", False),

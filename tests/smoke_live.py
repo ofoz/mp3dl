@@ -9,7 +9,7 @@ import time
 
 import requests
 
-BASE = "http://127.0.0.1:8080"
+BASE = "http://127.0.0.1:9080"
 H = {"X-Forwarded-For": "198.51.100.90"}
 
 EMAIL = os.environ.get("MP3DL_TEST_ADMIN_EMAIL", "")

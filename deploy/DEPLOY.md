@@ -4,7 +4,7 @@
 整体结构：
 
 ```
-公网 → OpenResty（宿主，终止 TLS）→ 127.0.0.1:8080 → mp3dl 容器（gunicorn 单进程 16 线程）
+公网 → OpenResty（宿主，终止 TLS）→ 127.0.0.1:9080 → mp3dl 容器（gunicorn 单进程 16 线程）
                                                         └── ./storage 挂载到宿主
 ```
 
@@ -127,7 +127,7 @@ MP3DL_CARD_PREFIX=MP3
 MP3DL_CARD_CREDITS=100
 ```
 
-> `MP3DL_HOST` / `MP3DL_PORT` 在 Docker 下**无效**——镜像里 gunicorn 固定绑 `0.0.0.0:8080`，
+> `MP3DL_HOST` / `MP3DL_PORT` 在 Docker 下**无效**——镜像里 gunicorn 固定绑 `0.0.0.0:9080`，
 > 端口映射由 compose 的 `ports` 决定。
 
 ---
@@ -140,12 +140,12 @@ docker compose up -d --build
 docker compose logs -f --tail=100
 ```
 
-正常会看到建表、迁移、管理员创建，最后是 gunicorn 的 `Listening at: http://0.0.0.0:8080`。
+正常会看到建表、迁移、管理员创建，最后是 gunicorn 的 `Listening at: http://0.0.0.0:9080`。
 
 验证容器内链路：
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/api/platforms   # 期望 200
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9080/api/platforms   # 期望 200
 docker compose ps                                                              # 期望 healthy
 ```
 
@@ -155,7 +155,7 @@ docker compose ps                                                              #
 
 完整配置见 [`deploy/openresty-mp3.dbas.fun.conf`](./openresty-mp3.dbas.fun.conf)，1Panel 操作顺序：
 
-1. **网站 → 创建网站**：域名 `mp3.dbas.fun`，类型选「反向代理」，代理地址 `http://127.0.0.1:8080`
+1. **网站 → 创建网站**：域名 `mp3.dbas.fun`，类型选「反向代理」，代理地址 `http://127.0.0.1:9080`
 2. **网站设置 → HTTPS**：申请 Let's Encrypt 证书，开启「强制 HTTPS」
 3. **网站设置 → 配置文件**：把模板里的 `location /` 段落替换上去
 4. 保存后 OpenResty 会自动重载
@@ -179,7 +179,7 @@ curl -sI https://mp3.dbas.fun/ | head -3
 
 # 2. 直链生成的 Host 是否正确（关键：不能出现 127.0.0.1）
 #    登录后点任意歌曲播放，浏览器 Network 里看 /api/download 返回的 url 前缀
-#    应为 https://mp3.dbas.fun/...  而不是 http://127.0.0.1:8080/...
+#    应为 https://mp3.dbas.fun/...  而不是 http://127.0.0.1:9080/...
 
 # 3. Cookie 是否带 Secure
 curl -sI https://mp3.dbas.fun/ | grep -i set-cookie
@@ -253,7 +253,7 @@ du -sh /opt/mp3dl/storage/cache
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| 下载/播放地址是 `http://127.0.0.1:8080/...` | 反代没传 `Host` | 加 `proxy_set_header Host $host;` |
+| 下载/播放地址是 `http://127.0.0.1:9080/...` | 反代没传 `Host` | 加 `proxy_set_header Host $host;` |
 | 登录成功但刷新又变未登录 | `X-Forwarded-Proto` 没传，后端认为不是 HTTPS，Cookie 带了 Secure 却在 HTTP 下丢弃；或 `MP3DL_SITE_HTTPS` 与实际情况不符 | 补 `X-Forwarded-Proto $scheme`，`.env` 里 `MP3DL_SITE_HTTPS=1` |
 | 所有人都共用一个限流额度 / 后台看到的 IP 全是 `172.x` | `MP3DL_TRUSTED_PROXIES` 没包含 docker 网段，或反代用了 `X-Forwarded-For $remote_addr` 覆盖而不是追加 | 用 `$proxy_add_x_forwarded_for`，并把 docker 网段写进 `MP3DL_TRUSTED_PROXIES` |
 | 搜索进度条卡住，最后一次性出来 | `proxy_buffering on` | 关闭缓冲 |
@@ -267,8 +267,8 @@ du -sh /opt/mp3dl/storage/cache
 
 ## 9. 安全与容量建议
 
-- **不要**把 `ports` 改成 `"8080:8080"`。一旦容器直接暴露公网，`X-Forwarded-For` 就变可伪造，限流和审计全部失效。
+- **不要**把 `ports` 改成 `"9080:9080"`。一旦容器直接暴露公网，`X-Forwarded-For` 就变可伪造，限流和审计全部失效。
 - **不要**给 gunicorn 加 worker（`-w 2` 及以上）。任务队列、缓存索引、限流计数都在进程内存，多进程会导致重复扣费、任务状态错乱。
-- 1Panel 的「防火墙」只放行 80/443，`8080` 保持仅回环。
+- 1Panel 的「防火墙」只放行 80/443，`9080` 保持仅回环。
 - 缓存上限 `MP3DL_CACHE_MAX_GB` 按磁盘余量设，超了会按 LRU 清理；`MP3DL_FILE_KEEP_HOURS`（默认 24）控制单曲缓存从最后一次被下载起保留多久。
 - 定期检查 `storage/mp3dl.db` 体积；若是长期运行后明显膨胀，停服执行一次 `VACUUM`。

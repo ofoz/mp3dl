@@ -176,7 +176,7 @@ set -a && source .env && set +a                      # bash
 # Windows PowerShell: 自己 $env:MP3DL_XXX="..."，或直接写系统环境变量
 
 # 3. 启动
-../.venv/Scripts/python run.py      # Windows  → http://127.0.0.1:8080
+../.venv/Scripts/python run.py      # Windows  → http://127.0.0.1:9080
 # ../.venv/bin/python run.py        # Linux / macOS
 ```
 
@@ -205,7 +205,7 @@ docker compose up -d --build
 > 全都在进程内，多 worker 会各自为政：缓存命中不了、任务进度互相看不见。
 > 需要横向扩展时，先把 `services/jobs.py` 的任务消费挪到独立进程。
 
-容器只监听 `127.0.0.1:8080`，由宿主上的 OpenResty 终止 TLS 并反代。
+容器只监听 `127.0.0.1:9080`，由宿主上的 OpenResty 终止 TLS 并反代。
 
 ---
 
@@ -241,7 +241,7 @@ mp3dl/
 ├── ui/                      README 用的界面截图
 ├── storage/                 SQLite / 音频缓存 / 临时文件（可用卷挂载出来）
 ├── Dockerfile               构建上下文 = 本目录
-├── docker-compose.yml       单容器编排（只绑 127.0.0.1:8080）
+├── docker-compose.yml       单容器编排（只绑 127.0.0.1:9080）
 └── run.py
 ```
 
@@ -295,21 +295,21 @@ mp3dl/
 
 ```bash
 # 登录拿 cookie
-curl -c ck.txt -X POST localhost:8080/api/auth/login \
+curl -c ck.txt -X POST localhost:9080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.com","password":"..."}'
 
 # 生成 10 张 100 积分的卡密
-curl -b ck.txt -X POST localhost:8080/api/admin/codes \
+curl -b ck.txt -X POST localhost:9080/api/admin/codes \
   -H 'Content-Type: application/json' -d '{"credits":100,"count":10}'
 
 # 直接给用户发 200 积分（负数表示扣减）
-curl -b ck.txt -X POST localhost:8080/api/admin/credits \
+curl -b ck.txt -X POST localhost:9080/api/admin/credits \
   -H 'Content-Type: application/json' -d '{"email":"user@example.com","credits":200}'
 
 # 看积分流水 / 站点数据
-curl -b ck.txt localhost:8080/api/admin/ledger
-curl -b ck.txt localhost:8080/api/admin/stats
+curl -b ck.txt localhost:9080/api/admin/ledger
+curl -b ck.txt localhost:9080/api/admin/stats
 ```
 
 ---
@@ -373,7 +373,7 @@ curl -b ck.txt localhost:8080/api/admin/stats
 |---|---|
 | `MP3DL_SECRET` | 单实例留空会自动生成并持久化到 `storage/.secret_key`；**多实例必须显式设为同一个值**，否则各实例签的直链互不认 |
 | `MP3DL_TRUSTED_PROXIES` | 必须与实际反代来源一致。反代在外网独立机器时，把它的出口 IP 加进去，否则所有用户会被识别成同一个 IP，限流变成「全体共享一个配额」 |
-| 反向代理 | 只监听 `127.0.0.1:8080`，由 Nginx/OpenResty 终止 TLS 并转发；`MP3DL_SITE_HTTPS=1` 让程序知道对外是 https |
+| 反向代理 | 只监听 `127.0.0.1:9080`，由 Nginx/OpenResty 终止 TLS 并转发；`MP3DL_SITE_HTTPS=1` 让程序知道对外是 https |
 
 ---
 
@@ -387,7 +387,7 @@ curl -b ck.txt localhost:8080/api/admin/stats
 |---|---|---|
 | `MP3DL_SITE_NAME` | MP3库 | 站点名（页头 / 标题） |
 | `MP3DL_SLOGAN` | 搜歌即得 MP3，歌单一键打包 | 副标题 |
-| `MP3DL_HOST` / `MP3DL_PORT` | 127.0.0.1 / 8080 | 监听地址 |
+| `MP3DL_HOST` / `MP3DL_PORT` | 127.0.0.1 / 9080 | 监听地址 |
 | `MP3DL_SECRET` * | 开发默认值 | 会话 + 直连令牌签名。示例值会自动替换为随机密钥并落盘 |
 | `MP3DL_DEBUG` | 0 | 调试模式（会开 Werkzeug 调试器，**生产必须 0**） |
 | `MP3DL_SITE_HTTPS` | 0 | 站点对外是 https 时设 1 |

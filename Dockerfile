@@ -33,13 +33,13 @@ RUN mkdir -p storage/cache storage/tmp storage/backups \
 
 USER appuser
 
-EXPOSE 8080
+EXPOSE 9080
 
 HEALTHCHECK --interval=30s --timeout=6s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/api/platforms')" || exit 1
+    CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9080/api/platforms')" || exit 1
 
 # 必须单进程多线程：任务队列、曲目缓存、限流计数都在进程内存里，
 # 加 worker 会导致跨进程状态不一致（重复扣费、任务状态错乱）。
 CMD ["gunicorn", "-w", "1", "-k", "gthread", "--threads", "16", \
      "--timeout", "180", "--graceful-timeout", "30", \
-     "-b", "0.0.0.0:8080", "--access-logfile", "-", "run:app"]
+     "-b", "0.0.0.0:9080", "--access-logfile", "-", "run:app"]

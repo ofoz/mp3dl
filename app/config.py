@@ -37,7 +37,7 @@ def _file_keep_hours():
 class Config:
     # 服务
     HOST = _env("MP3DL_HOST", "127.0.0.1")
-    PORT = _env("MP3DL_PORT", 8080, int)
+    PORT = _env("MP3DL_PORT", 9080, int)
     SECRET_KEY = _env("MP3DL_SECRET", "mp3dl-dev-secret-change-me")
     DEBUG = _env("MP3DL_DEBUG", False, bool)
     # 只有来自这些地址的请求才采信 X-Forwarded-For。
