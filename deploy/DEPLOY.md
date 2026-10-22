@@ -3,6 +3,7 @@
 面向已有 **1Panel / Docker / OpenResty** 的 Linux 服务器，以域名 `mp3.dbas.fun` 为例。
 
 > 仓库已公开：<https://github.com/ofoz/mp3dl> —— `git clone` 不需要任何凭据。
+>   
 > 但**公开也意味着配置里的默认值全世界都能看到**，第 8 节的三条要求请务必执行。
 
 ---
@@ -21,19 +22,19 @@ mp3dl 容器（gunicorn 单进程 16 线程，UID 1000）
    └── ./storage  ←→  /app/mp3dl/storage   （SQLite / 音频缓存 / 密钥 / 备份）
 ```
 
-| 组件 | 位置 | 端口 | 职责 |
-|---|---|---|---|
-| OpenResty | 宿主 | 80 / 443 | TLS 终止、反向代理、缓冲控制、日志 |
-| mp3dl 容器 | 宿主回环 | 127.0.0.1:9080 | 全部业务逻辑 |
-| SQLite + 音频缓存 | 宿主 `./storage` | — | 持久化数据，容器重建不丢 |
+| 组件            | 位置             | 端口             | 职责                  |
+| ------------- | -------------- | -------------- | ------------------- |
+| OpenResty     | 宿主             | 80 / 443       | TLS 终止、反向代理、缓冲控制、日志 |
+| mp3dl 容器      | 宿主回环           | 127.0.0.1:9080 | 全部业务逻辑              |
+| SQLite + 音频缓存 | 宿主 `./storage` | —              | 持久化数据，容器重建不丢        |
 
 ### 三个不能改的设计约束
 
-| 约束 | 为什么 | 破坏了会怎样 |
-|---|---|---|
-| **gunicorn 必须 `-w 1`** | 任务队列、直链缓存、限流计数、转码线程池全在进程内存 | 加 worker → 各进程状态独立：缓存互相看不见、任务进度错乱、**同一笔积分被重复扣** |
-| **端口只绑 `127.0.0.1`** | 后端靠 `X-Forwarded-For` 识别真实 IP | 改成 `"9080:9080"` 直接暴露公网 → XFF 可随意伪造，**限流与审计全部失效** |
-| **`storage/` 必须挂卷** | 库、密钥、缓存都在里面 | 不挂载 → 每次重建容器等于清库 |
+| 约束                     | 为什么                           | 破坏了会怎样                                            |
+| ---------------------- | ----------------------------- | ------------------------------------------------- |
+| **gunicorn 必须 `-w 1`** | 任务队列、直链缓存、限流计数、转码线程池全在进程内存    | 加 worker → 各进程状态独立：缓存互相看不见、任务进度错乱、**同一笔积分被重复扣**   |
+| **端口只绑 `127.0.0.1`**   | 后端靠 `X-Forwarded-For` 识别真实 IP | 改成 `"9080:9080"` 直接暴露公网 → XFF 可随意伪造，**限流与审计全部失效** |
+| **`storage/` 必须挂卷**    | 库、密钥、缓存都在里面                   | 不挂载 → 每次重建容器等于清库                                  |
 
 需要横向扩展时，先把 `app/services/jobs.py` 的任务消费拆成独立进程，再考虑多副本。
 
@@ -41,14 +42,14 @@ mp3dl 容器（gunicorn 单进程 16 线程，UID 1000）
 
 ## 1. 前置条件
 
-| 项目 | 要求 | 检查命令 |
-|---|---|---|
-| 系统 | Linux x86_64 / aarch64（镜像基于 `python:3.11-slim` 多架构） | `uname -m` |
-| Docker | 20.10+，含 compose 插件 | `docker compose version` |
-| 内存 | 1GB 起，建议 2GB | `free -h` |
-| 磁盘 | 系统 2GB + 缓存余量（默认上限 20GB） | `df -h /opt` |
-| 域名 | 已解析到本机公网 IP | `dig +short mp3.dbas.fun` |
-| 出网 | 容器能访问音乐平台 API 与 GitHub | `docker run --rm curlimages/curl -sI https://music.163.com` |
+| 项目     | 要求                                                  | 检查命令                                                        |
+| ------ | --------------------------------------------------- | ----------------------------------------------------------- |
+| 系统     | Linux x86_64 / aarch64（镜像基于 `python:3.11-slim` 多架构） | `uname -m`                                                  |
+| Docker | 20.10+，含 compose 插件                                 | `docker compose version`                                    |
+| 内存     | 1GB 起，建议 2GB                                        | `free -h`                                                   |
+| 磁盘     | 系统 2GB + 缓存余量（默认上限 20GB）                            | `df -h /opt`                                                |
+| 域名     | 已解析到本机公网 IP                                         | `dig +short mp3.dbas.fun`                                   |
+| 出网     | 容器能访问音乐平台 API 与 GitHub                              | `docker run --rm curlimages/curl -sI https://music.163.com` |
 
 > 1Panel 里如果装的是旧版 `docker-compose`（v1），把下文所有 `docker compose` 换成 `docker-compose` 即可。
 
@@ -113,6 +114,8 @@ mkdir -p storage/cache storage/tmp storage/backups
 chown -R 1000:1000 storage
 chmod 750 storage
 ```
+
+
 
 ---
 
@@ -187,17 +190,19 @@ MP3DL_CARD_CREDITS=100
 
 ### 四项必改（其余可先照抄）
 
-| 变量 | 为什么必须改 | 改错的后果 |
-|---|---|---|
-| `MP3DL_SECRET` | 代码里带示例值，公开仓库人人可见 | 别人能伪造直链与封面令牌（曾实测可借它做 SSRF 打内网） |
-| `MP3DL_ADMIN_EMAIL` / `MP3DL_ADMIN_PASSWORD` | 同上，示例值是公开的 | 后台被直接登录 |
-| `MP3DL_SITE_HTTPS=1` | 反代后后端默认认为自己是 http | Cookie 不带 Secure，或带了却被丢弃 → 登录成功但刷新掉线 |
-| `MP3DL_TRUSTED_PROXIES` | 容器看到的对端是 docker 网关 | 不含该网段 → 所有用户被识别成反代 IP，**全员共享一个限流额度** |
+| 变量                                           | 为什么必须改             | 改错的后果                                |
+| -------------------------------------------- | ------------------ | ------------------------------------ |
+| `MP3DL_SECRET`                               | 代码里带示例值，公开仓库人人可见   | 别人能伪造直链与封面令牌（曾实测可借它做 SSRF 打内网）       |
+| `MP3DL_ADMIN_EMAIL` / `MP3DL_ADMIN_PASSWORD` | 同上，示例值是公开的         | 后台被直接登录                              |
+| `MP3DL_SITE_HTTPS=1`                         | 反代后后端默认认为自己是 http  | Cookie 不带 Secure，或带了却被丢弃 → 登录成功但刷新掉线 |
+| `MP3DL_TRUSTED_PROXIES`                      | 容器看到的对端是 docker 网关 | 不含该网段 → 所有用户被识别成反代 IP，**全员共享一个限流额度** |
 
 > **管理员账号只在「库里不存在该邮箱」时创建。** 第一次启动前就要把邮箱密码填好；
+>   
 > 之后改 `.env` 里的这两项不会生效，只能通过后台改密码接口处理。
 
 > `MP3DL_HOST` / `MP3DL_PORT` 在 Docker 下**无效** —— 镜像里 gunicorn 固定绑 `0.0.0.0:9080`，
+>   
 > 端口映射由 compose 的 `ports` 决定。
 
 ---
@@ -221,7 +226,84 @@ docker compose ps                                                              #
 
 `/api/platforms` 返回 503 或空列表，说明音源库加载失败，先查 `docker compose logs` 里的 `musicdl` 报错。
 
-> 构建时 pip 走的是阿里云镜像（`Dockerfile` 第 13 行）。服务器在海外就注释掉那两行，否则反而慢。
+> 构建时 pip 走阿里云镜像（`Dockerfile` 的 `ARG PIP_INDEX_URL`）。服务器在海外就改成官方源，否则反而慢：
+>
+> ```bash
+> docker compose build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ \
+>                      --build-arg PIP_TRUSTED_HOST=pypi.org
+> ```
+
+### 5.1 构建卡在 `pip install` 报 DNS 失败
+
+报错长这样：
+
+```
+NewConnectionError(... Failed to establish a new connection:
+[Errno -3] Temporary failure in name resolution)
+ERROR: Could not find a version that satisfies the requirement flask<4,>=3.0 (from versions: none)
+```
+
+**这不是代码或 requirements 的问题，是构建容器的 DNS 不通**。要区分两个 DNS：
+
+| 场景 | 谁在用 | 由谁配置 |
+| --- | --- | --- |
+| `docker build` 期间的临时容器 | `pip install` | dockerd 默认（**不看** compose 的 `dns:`） |
+| `docker compose up` 起来的运行容器 | 站内搜索音源 | compose 的 `dns:` 字段 |
+
+compose 里的 `dns: 223.5.5.5` 对**构建期完全不生效** —— 这是最常见的误判。Ubuntu 上如果 `/etc/resolv.conf` 是 `nameserver 127.0.0.53`（systemd-resolved），dockerd 会把容器 DNS 换成 `8.8.8.8`，国内基本不通，于是出现上面的报错。
+
+按顺序排查：
+
+```bash
+# 1. 宿主自己能解析吗（能 ping 通主机名说明宿主正常）
+getent hosts mirrors.aliyun.com || cat /etc/resolv.conf
+
+# 2. 看 dockerd 有没有被注入坏 DNS
+cat /etc/docker/daemon.json 2>/dev/null
+
+# 3. 直接测构建容器的 DNS
+docker run --rm busybox nslookup mirrors.aliyun.com
+```
+
+三种修法，任选：
+
+**A. 让构建走宿主网络（本仓库已默认启用）**
+
+`docker-compose.yml` 的 `build.network: host` 已配好，直接重跑即可：
+
+```bash
+docker compose build --no-cache
+```
+
+**B. 给 dockerd 显式指定 DNS（推荐同时做，运行容器也受益）**
+
+```bash
+cat > /etc/docker/daemon.json <<'EOF'
+{
+  "dns": ["223.5.5.5", "119.29.29.29"]
+}
+EOF
+systemctl restart docker    # 会重启所有容器，选低峰期
+```
+
+**C. 兜底：宿主直接预拉依赖，构建只做 COPY**
+
+如果服务器出网极不稳定，可以放弃构建期联网：
+
+```bash
+# 在能上网的机器上导出依赖包，拷到服务器
+pip download -r requirements.txt -d wheelhouse --only-binary=:all: --platform manylinux2014_x86_64
+```
+
+然后把 `wheelhouse/` 一起 `scp` 上去，`Dockerfile` 里改成：
+
+```dockerfile
+COPY wheelhouse ./wheelhouse
+RUN pip install --no-cache-dir --no-index --find-links=wheelhouse -r requirements.txt
+```
+
+> 构建成功后 `pip install` 那一层会被缓存，后续改代码重建不会再联网，所以这个问题通常只需要解决一次。
+
 
 ---
 
@@ -236,17 +318,19 @@ docker compose ps                                                              #
 
 ### 四项必配指令
 
-| 指令 | 作用 | 漏了的症状 |
-|---|---|---|
-| `proxy_set_header Host $host;` | 后端用 `request.host_url` 生成直链 | 下载地址变成 `http://127.0.0.1:9080/...` |
-| `proxy_set_header X-Forwarded-Proto $scheme;` | 后端 `ProxyFix` 据此判断 HTTPS | 登录成功但刷新掉线（Cookie 带 Secure 却在 HTTP 下传输） |
-| `proxy_buffering off;` | SSE 流式搜索逐个推送 | 进度条卡住，最后一次性弹出全部结果 |
-| `proxy_read_timeout 300s;` | 实测单平台搜索约 30s，全平台更久 | 默认 60s 直接 504 |
+| 指令                                            | 作用                          | 漏了的症状                                  |
+| --------------------------------------------- | --------------------------- | -------------------------------------- |
+| `proxy_set_header Host $host;`                | 后端用 `request.host_url` 生成直链 | 下载地址变成 `http://127.0.0.1:9080/...`     |
+| `proxy_set_header X-Forwarded-Proto $scheme;` | 后端 `ProxyFix` 据此判断 HTTPS    | 登录成功但刷新掉线（Cookie 带 Secure 却在 HTTP 下传输） |
+| `proxy_buffering off;`                        | SSE 流式搜索逐个推送                | 进度条卡住，最后一次性弹出全部结果                      |
+| `proxy_read_timeout 300s;`                    | 实测单平台搜索约 30s，全平台更久          | 默认 60s 直接 504                          |
 
 另外 `X-Forwarded-For` 必须用 `$proxy_add_x_forwarded_for`（**追加**，不是覆盖），否则真实 IP 丢失。
 
 > gunicorn 的 `--timeout 180` 与反代的 `proxy_read_timeout 300` 是配套的：
+>   
 > 反代等得更久，是为了让 gunicorn 有机会正常返回而不是被反代先掐断。
+>   
 > 若你把 `MP3DL_SOURCE_TIMEOUT` 调大，这两个值要一起加。
 
 ---
@@ -264,18 +348,18 @@ curl -s -o /dev/null -w "%{http_code}\n" https://mp3.dbas.fun/api/platforms   # 
 
 浏览器侧逐项过一遍：
 
-| # | 检查项 | 期望 |
-|---|---|---|
-| 1 | 注册新账号 | 成功，且同 IP 第 4 次注册被拒（429） |
-| 2 | 登录后刷新页面 | 仍是登录态（不是掉线） |
-| 3 | 搜索「稻香」 | 进度逐一出现（不是最后一次性冒出） |
-| 4 | 点播放 | 能出声；Network 里音频地址是**源站 CDN**，不是本站 |
-| 5 | 下载 MP3 | 文件可播，ID3 有标题/封面 |
-| 6 | 下载 FLAC | 扣 50 积分；若提示「源站不支持加密直连，已改为服务端中转」，说明走了中转 |
-| 7 | 下载后看后台「今日下载」 | 数字 +1，积分按规则减少 |
-| 8 | 后台 → 卡密 → 生成 | 能生成，格式 `MP3-XXXX-XXXX-XXXX` |
-| 9 | 退出登录再访问 `/admin` | 被踢回首页或提示无权限 |
-| 10 | 在手机上打开 | 顶栏不溢出，账号菜单可用 |
+| #  | 检查项              | 期望                                     |
+| -- | ---------------- | -------------------------------------- |
+| 1  | 注册新账号            | 成功，且同 IP 第 4 次注册被拒（429）                |
+| 2  | 登录后刷新页面          | 仍是登录态（不是掉线）                            |
+| 3  | 搜索「稻香」           | 进度逐一出现（不是最后一次性冒出）                      |
+| 4  | 点播放              | 能出声；Network 里音频地址是**源站 CDN**，不是本站      |
+| 5  | 下载 MP3           | 文件可播，ID3 有标题/封面                        |
+| 6  | 下载 FLAC          | 扣 50 积分；若提示「源站不支持加密直连，已改为服务端中转」，说明走了中转 |
+| 7  | 下载后看后台「今日下载」     | 数字 +1，积分按规则减少                          |
+| 8  | 后台 → 卡密 → 生成     | 能生成，格式 `MP3-XXXX-XXXX-XXXX`            |
+| 9  | 退出登录再访问 `/admin` | 被踢回首页或提示无权限                            |
+| 10 | 在手机上打开           | 顶栏不溢出，账号菜单可用                           |
 
 第 4 项最关键：如果音频地址是 `https://mp3.dbas.fun/api/dl/...` 而不是源站域名，说明直连降级了，检查 `Host` 头是否透传。
 
@@ -387,20 +471,22 @@ docker stats mp3dl --no-stream         # CPU / 内存 / 网络
 
 ## 10. 故障排查
 
-| 症状 | 原因 | 处理 |
-|---|---|---|
-| 下载/播放地址是 `http://127.0.0.1:9080/...` | 反代没传 `Host` | 加 `proxy_set_header Host $host;` |
-| 登录成功，刷新后变未登录 | 后端认为不是 HTTPS，Cookie 带 Secure 被浏览器丢弃 | 补 `X-Forwarded-Proto $scheme`，`.env` 设 `MP3DL_SITE_HTTPS=1` |
-| 全员共用一个限流额度，后台 IP 全是 `172.x` | `MP3DL_TRUSTED_PROXIES` 未包含 docker 网段，或 XFF 用了覆盖而非追加 | 网段写进配置，XFF 改 `$proxy_add_x_forwarded_for` |
-| 搜索进度条卡住，最后一次性出现 | `proxy_buffering on` | 关闭缓冲 |
-| 搜索 / 打包 504 | `proxy_read_timeout` 太短 | 调到 300s，并确认 gunicorn `--timeout 180` |
-| 容器反复重启，日志 `unable to open database file` | `storage` 属主不是 1000 | `chown -R 1000:1000 storage` |
-| 启动报 `ModuleNotFoundError: musicdl` | `vendor/` 没传完整 | 确认 `vendor/musicdl/__init__.py` 存在 |
-| 搜索全部平台超时 | 容器 DNS 不稳 | 确认 compose 的 `dns: 223.5.5.5 / 119.29.29.29` 生效，或换 `8.8.8.8` |
-| 封面不显示 | 目标 CDN 不在白名单 | 域名后缀加进 `MP3DL_COVER_HOSTS` |
-| 某平台搜不到歌 / 报签名错误 | 平台接口变更 | 查 `/api/health`，把 `app/services/platforms.py` 里该平台的 `enabled` 置 false |
-| 改 `.env` 后不生效 | compose 只在创建容器时读 `env_file` | `docker compose up -d` 重建容器（不是 `restart`） |
-| 后台打不开、提示无权限 | 当前账号不是管理员 | 用 `.env` 里配的管理员邮箱登录 |
+
+| 症状                                       | 原因                                                   | 处理                                                                    |
+| ---------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------- |
+| 下载/播放地址是 `http://127.0.0.1:9080/...`     | 反代没传 `Host`                                          | 加 `proxy_set_header Host $host;`                                      |
+| 登录成功，刷新后变未登录                             | 后端认为不是 HTTPS，Cookie 带 Secure 被浏览器丢弃                  | 补 `X-Forwarded-Proto $scheme`，`.env` 设 `MP3DL_SITE_HTTPS=1`           |
+| 全员共用一个限流额度，后台 IP 全是 `172.x`              | `MP3DL_TRUSTED_PROXIES` 未包含 docker 网段，或 XFF 用了覆盖而非追加 | 网段写进配置，XFF 改 `$proxy_add_x_forwarded_for`                             |
+| 搜索进度条卡住，最后一次性出现                          | `proxy_buffering on`                                 | 关闭缓冲                                                                  |
+| 搜索 / 打包 504                              | `proxy_read_timeout` 太短                              | 调到 300s，并确认 gunicorn `--timeout 180`                                  |
+| 容器反复重启，日志 `unable to open database file` | `storage` 属主不是 1000                                  | `chown -R 1000:1000 storage`                                          |
+| 启动报 `ModuleNotFoundError: musicdl`       | `vendor/` 没传完整                                       | 确认 `vendor/musicdl/__init__.py` 存在                                    |
+| 构建时 `pip install` 报 `Temporary failure in name resolution` | 构建容器 DNS 不通，compose 的 `dns:` 不管构建期 | 见 [5.1](#51-构建卡在-pip-install-报-dns-失败)，`build.network: host` + dockerd 配 DNS |
+| 搜索全部平台超时                                 | 容器 DNS 不稳                                            | 确认 compose 的 `dns: 223.5.5.5 / 119.29.29.29` 生效，或换 `8.8.8.8`          |
+| 封面不显示                                    | 目标 CDN 不在白名单                                         | 域名后缀加进 `MP3DL_COVER_HOSTS`                                            |
+| 某平台搜不到歌 / 报签名错误                          | 平台接口变更                                               | 查 `/api/health`，把 `app/services/platforms.py` 里该平台的 `enabled` 置 false |
+| 改 `.env` 后不生效                            | compose 只在创建容器时读 `env_file`                          | `docker compose up -d` 重建容器（不是 `restart`）                             |
+| 后台打不开、提示无权限                              | 当前账号不是管理员                                            | 用 `.env` 里配的管理员邮箱登录                                                   |
 
 ---
 
@@ -415,10 +501,10 @@ docker stats mp3dl --no-stream         # CPU / 内存 / 网络
 
 ### 容量估算
 
-| 项目 | 单首 | 20GB 上限约能存 |
-|---|---|---|
-| MP3 320k | ~8MB | 2500 首 |
-| FLAC | ~30MB | 660 首 |
+| 项目       | 单首    | 20GB 上限约能存 |
+| -------- | ----- | ---------- |
+| MP3 320k | ~8MB  | 2500 首     |
+| FLAC     | ~30MB | 660 首      |
 
 注意 MP3 默认让浏览器直连音源，服务器**不落盘**；只有 FLAC 的混合内容降级、以及需要转码的平台才会写缓存。
 

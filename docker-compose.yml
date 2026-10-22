@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # 构建容器走宿主网络：下面 services 里的 dns: 只对运行期容器生效，
+      # 构建期用的是 dockerd 默认 DNS，在国内常被解析成 8.8.8.8 导致
+      # pip 报 "Temporary failure in name resolution"。用 host 网络可绕开。
+      network: host
     image: mp3dl:latest
     container_name: mp3dl
     restart: unless-stopped

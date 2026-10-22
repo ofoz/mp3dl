@@ -9,9 +9,15 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     TZ=Asia/Shanghai
 
-# PyPI 镜像，国内构建更快；如在海外可注释掉
-RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
-    pip config set global.trusted-host mirrors.aliyun.com
+# PyPI 源可在构建时覆盖（海外服务器换成官方源）：
+#   docker compose build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ \
+#                        --build-arg PIP_TRUSTED_HOST=pypi.org
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+ARG PIP_TRUSTED_HOST=mirrors.aliyun.com
+RUN pip config set global.index-url "$PIP_INDEX_URL" && \
+    pip config set global.trusted-host "$PIP_TRUSTED_HOST" && \
+    pip config set global.timeout 60 && \
+    pip config set global.retries 10
 
 WORKDIR /app/mp3dl
 
