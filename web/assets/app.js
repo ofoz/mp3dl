@@ -16,6 +16,8 @@
     expanded: new Set(),     // 任务列表里展开的 job
     jobs: new Map(),         // job_id -> detail（仅轮询中的）
     polling: null,
+    searching: false,        // 搜索进行中（防重入 + 驱动搜索栏边框）
+    searchResetTimer: null,
   };
 
   const pickSet = (name) => (name === 'search' ? state.spicked : state.picked);
@@ -461,9 +463,54 @@
     });
   }
 
+  /* 搜索栏 + 按钮的状态机：idle / searching（已发出请求）/ streaming（已开始收到结果）/ done */
+  function setSearchPhase(phase, info) {
+    const bar = $('#searchBar');
+    const btn = $('#btnSearch');
+    if (!bar || !btn) return;
+    const opt = info || {};
+    if (state.searchResetTimer) { clearTimeout(state.searchResetTimer); state.searchResetTimer = null; }
+
+    if (phase === 'reset') phase = 'idle';
+    const busy = phase === 'searching' || phase === 'streaming';
+    state.searching = busy;
+
+    bar.classList.toggle('is-searching', phase === 'searching');
+    bar.classList.toggle('is-streaming', phase === 'streaming');
+    btn.classList.toggle('is-busy', busy);
+    btn.disabled = busy;
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+
+    const txt = btn.querySelector('.btn-txt') || btn;
+    if (phase === 'searching') txt.textContent = '搜索中';
+    else if (phase === 'streaming') txt.textContent = (opt.total || 0) + ' 首';
+    else if (phase === 'done') {
+      txt.textContent = '共 ' + (opt.total || 0) + ' 首';
+      state.searchResetTimer = setTimeout(() => { setSearchPhase('idle'); }, 1400);
+    } else txt.textContent = '搜索';
+  }
+
+  function searchTotals() {
+    let n = 0;
+    state.results.forEach((r) => { n += (r.tracks || []).length; });
+    return { total: n, platforms: state.results.size };
+  }
+
+  function renderSearchHead(final, srcCount) {
+    const status = $('#searchStatus');
+    if (!status) return;
+    const t = searchTotals();
+    if (!t.platforms) { status.innerHTML = ''; return; }
+    const meta = final
+      ? (t.total ? '共 ' + t.total + ' 首 · 来自 ' + t.platforms + ' 个平台' : '暂无结果')
+      : '已找到 ' + t.total + ' 首 · ' + t.platforms + '/' + (srcCount || t.platforms) + ' 个平台';
+    status.innerHTML = '<div class="section-head"><h2>搜索结果</h2><span class="meta">' + meta + '</span></div>';
+  }
+
   async function doSearch() {
     const q = $('#q').value.trim();
     if (!q) { toast('请输入歌名或歌手'); return; }
+    if (state.searching) return;
     const starter = $('#starter');
     if (starter) starter.hidden = true;
     const feats = $('#feats');
@@ -476,7 +523,9 @@
     $('#results').innerHTML = '';
     $('#batchBar').innerHTML = '';
     const status = $('#searchStatus');
-    status.innerHTML = '<div class="section-head"><h2>搜索中…</h2><span class="meta">各平台并发返回</span></div>';
+    // 搜索中的状态由按钮 + 搜索栏边框表达，这里先留空，等首个平台返回再出结果头
+    status.innerHTML = '';
+    setSearchPhase('searching');
     renderChips();
 
     const sources = Array.from(state.selected);
@@ -485,39 +534,77 @@
     if (!window.EventSource) { return searchFallback(q, sources); }
 
     const es = new EventSource(url);
-    let total = 0;
-    es.addEventListener('platform', (ev) => {
+    let settled = false;   // done / error 只会生效一次，避免 onerror 覆盖已完成的状态
+    es.addEventListener('track', (ev) => {
+      // 逐首到达：先在对应平台分组里落一首，立刻重绘
       const data = JSON.parse(ev.data);
-      state.results.set(data.platform, data);
-      total += data.count || 0;
+      const meta = state.platforms.find((x) => x.key === data.platform) || {};
+      let res = state.results.get(data.platform);
+      if (!res) {
+        res = { platform: data.platform, label: data.track.platform_label || meta.label || data.platform, count: 0, tracks: [] };
+        state.results.set(data.platform, res);
+      }
+      if ((res.tracks || []).some((t) => t.track_key === data.track.track_key)) return;
+      res.tracks.push(data.track);
+      res.count = res.tracks.length;
       renderChips();
       renderResults();
-      status.innerHTML = '<div class="section-head"><h2>搜索结果</h2>' +
-        '<span class="meta">已找到 ' + total + ' 首 · ' + state.results.size + '/' + sources.length + ' 个平台</span></div>';
+      renderSearchHead(false, sources.length);
+      if (!settled) setSearchPhase('streaming', { total: searchTotals().total });
+    });
+    es.addEventListener('platform', (ev) => {
+      // 该平台搜完了：补上耗时 / 超时 / 空结果的最终态
+      const data = JSON.parse(ev.data);
+      const cur = state.results.get(data.platform);
+      if (cur) {
+        // 已经推过来的曲目是有效的：超时/异常只影响「还没出结果」，不能把已出的标成失败
+        cur.count = (cur.tracks || []).length || (data.count || 0);
+        if (data.elapsed) cur.elapsed = data.elapsed;
+        if (data.error && !(cur.tracks || []).length) cur.error = data.error;
+      } else {
+        state.results.set(data.platform, {
+          platform: data.platform, label: data.label, count: data.count || 0,
+          elapsed: data.elapsed, error: data.error, tracks: data.tracks || [],
+        });
+      }
+      renderChips();
+      renderResults();
+      renderSearchHead(false, sources.length);
     });
     es.addEventListener('done', () => {
+      settled = true;
       es.close();
-      if (!total) {
-        status.innerHTML = '<div class="section-head"><h2>搜索结果</h2><span class="meta">暂无结果</span></div>';
+      const t = searchTotals();
+      setSearchPhase('done', { total: t.total });
+      renderSearchHead(true, sources.length);
+      if (!t.total) {
         $('#results').innerHTML = '<div class="card empty">没有找到相关歌曲，换个关键词或换几个平台试试</div>';
-      } else {
-        status.innerHTML = '<div class="section-head"><h2>搜索结果</h2>' +
-          '<span class="meta">共 ' + total + ' 首 · 来自 ' + state.results.size + ' 个平台</span></div>';
       }
     });
     es.onerror = () => {
       es.close();
-      if (!state.results.size) searchFallback(q, sources);
+      if (settled) return;
+      settled = true;
+      const t = searchTotals();
+      if (!t.platforms) { searchFallback(q, sources); return; }
+      // 已经收到部分结果就当作完成，不要退回空白
+      setSearchPhase('done', { total: t.total });
+      renderSearchHead(true, sources.length);
     };
   }
 
   async function searchFallback(q, sources) {
+    setSearchPhase('searching');
     try {
       const data = await api('/api/search?q=' + encodeURIComponent(q) + '&platforms=' + encodeURIComponent(sources.join(',')));
       data.results.forEach((r) => state.results.set(r.platform, r));
       renderChips();
       renderResults();
+      const total = data.results.reduce((n, r) => n + (r.count || 0), 0);
+      setSearchPhase('done', { total });
+      renderSearchHead(true, sources.length);
     } catch (err) {
+      setSearchPhase('idle');
       $('#searchStatus').innerHTML = '<div class="card empty">' + esc(err.message) + '</div>';
     }
   }

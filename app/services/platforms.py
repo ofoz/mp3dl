@@ -264,6 +264,87 @@ def search_one(source: str, keyword: str, profile: str = "mp3"):
     }
 
 
+class _HookList(list):
+    """带钩子的 list：musicdl 的 _search 每解析出一首就 append 一次，
+    把它的目标容器换成这个类，就能在搜索过程中拿到单曲，实现边搜边推。
+    """
+
+    def __init__(self, on_append):
+        super().__init__()
+        self._on_append = on_append
+
+    def append(self, item):
+        super().append(item)
+        try:
+            self._on_append(item)
+        except Exception:  # 回调失败不能影响搜索本身
+            pass
+
+    def extend(self, items):
+        for item in items:
+            self.append(item)
+
+
+def search_stream(source: str, keyword: str, profile: str = "mp3", on_track=None):
+    """与 search_one 等价，但每解析出一首就回调 on_track(track_dict)。
+
+    musicdl 的 search() 内部按 URL 并发调 _search，而 _search 是「逐首解析」的
+    （每首要额外请求 1~2 次拿直链），整平台要 20~30s。这里把 _search 收到的
+    song_infos 容器换成 _HookList，逐首回调，首屏几百毫秒内就能出第一首。
+    """
+    started = time.time()
+    hits = []
+
+    def emit(song):
+        if not song.song_name:
+            return
+        TRACKS.put(song, source)
+        payload = track_payload(song, source)
+        hits.append(payload)
+        if on_track is not None:
+            on_track(payload)
+
+    with quality.use_profile(source, profile):
+        client = get_client(source)
+        orig = client._search
+
+        def patched(*args, **kwargs):
+            # _search(keyword, search_url, request_overrides, song_infos, progress[, progress_id])
+            args = list(args)
+            watch = target = None
+            if len(args) >= 4 and isinstance(args[3], list):
+                target, watch = args[3], _HookList(emit)
+                args[3] = watch
+            else:
+                key = next((k for k, v in kwargs.items() if isinstance(v, list)), None)
+                if key is not None:
+                    target, watch = kwargs[key], _HookList(emit)
+                    kwargs[key] = watch
+            try:
+                return orig(*args, **kwargs)
+            finally:
+                # 把钩子收到的条目写回原容器，search() 的统计/pkl 落盘才不会漏
+                if target is not None and watch is not None:
+                    target.extend(list(watch))
+
+        client._search = patched
+        try:
+            client.search(keyword=keyword, request_overrides=_request_overrides(source, profile))
+        finally:
+            try:
+                del client._search
+            except AttributeError:
+                client._search = orig
+
+    return {
+        "platform": source,
+        "label": PLATFORMS.get(source, {}).get("label", source),
+        "count": len(hits),
+        "elapsed": round(time.time() - started, 2),
+        "tracks": hits,
+    }
+
+
 def search_all(keyword, sources, profile="mp3"):
     """并发搜索，按平台返回（超时的平台返回空并标注 timeout）。
 

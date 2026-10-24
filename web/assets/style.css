@@ -369,6 +369,7 @@ header.top {
 
 /* 搜索框：一体化玻璃胶囊 */
 .searchbar {
+  position: relative;
   display: flex; align-items: center; gap: 6px;
   max-width: 660px; margin: 0 auto;
   padding: 7px;
@@ -397,6 +398,46 @@ header.top {
 .searchbar .btn {
   padding: 0 26px; height: 46px;
   border-radius: 14px; font-size: 15px;
+}
+
+/* —— 搜索进行中：搜索栏亮起呼吸边框，按钮内显示状态 —— */
+/* 边框环用伪元素画，避免覆盖 .searchbar 自身的 rise 入场动画 */
+.searchbar::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(109, 94, 252, .38), 0 0 0 8px rgba(168, 85, 247, .12);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.searchbar.is-searching,
+.searchbar.is-streaming { border-color: rgba(109, 94, 252, .5); }
+.searchbar.is-searching::after { opacity: .7; }
+.searchbar.is-streaming::after { opacity: 1; animation: ringBreathe 1.7s ease-in-out infinite; }
+@keyframes ringBreathe {
+  0%, 100% { opacity: .45; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.008); }
+}
+
+/* 按钮忙碌态：spinner + 等宽数字，宽度不跳 */
+.searchbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 104px; }
+.searchbar .btn.is-busy { cursor: progress; }
+.searchbar .btn.is-busy:disabled { opacity: 1; }
+.searchbar .btn.is-busy::before {
+  content: "";
+  width: 13px; height: 13px; flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .42);
+  border-top-color: #fff;
+  animation: searchSpin .72s linear infinite;
+}
+@keyframes searchSpin { to { transform: rotate(360deg); } }
+.searchbar .btn-txt { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .searchbar.is-streaming::after { animation: none; opacity: .85; }
+  .searchbar .btn.is-busy::before { animation-duration: 1.6s; }
 }
 
 /* 平台筛选 */

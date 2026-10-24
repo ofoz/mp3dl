@@ -1,5 +1,6 @@
 """平台列表 / 搜索（SSE 流式 + 普通 JSON）/ 平台健康检查"""
 import json
+import queue
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout, as_completed
@@ -47,25 +48,52 @@ def search_stream():
     def generate():
         yield _sse("start", {"q": keyword, "sources": sources})
         budget = max([platforms.source_timeout(s) for s in sources] or [Config.SOURCE_TIMEOUT]) + 10
-        pool = ThreadPoolExecutor(max_workers=len(sources))
-        futures = {pool.submit(platforms.search_one, s, keyword, "mp3"): s for s in sources}
+        deadline = time.time() + budget
+        events = queue.Queue()
+        pool = ThreadPoolExecutor(max_workers=max(len(sources), 1))
+
+        def run(src):
+            """一个平台一个线程：曲目解析出一首就丢进队列，前端立刻能渲染。"""
+            def on_track(payload):
+                events.put(("track", src, payload))
+            try:
+                result = platforms.search_stream(src, keyword, "mp3", on_track)
+                events.put(("platform", src, result))
+            except Exception as err:
+                events.put(("platform", src, {
+                    "platform": src, "label": platforms.PLATFORMS.get(src, {}).get("label", src),
+                    "count": 0, "elapsed": 0, "tracks": [], "error": str(err)[:160],
+                }))
+
+        for src in sources:
+            pool.submit(run, src)
+
+        pending = set(sources)
+        last_emit = time.time()
         try:
-            for fut in as_completed(futures, timeout=budget):
-                src = futures[fut]
+            while pending:
+                remain = deadline - time.time()
+                if remain <= 0:
+                    for src in list(pending):
+                        yield _sse("platform", {
+                            "platform": src, "label": platforms.PLATFORMS.get(src, {}).get("label", src),
+                            "count": 0, "tracks": [], "error": "timeout",
+                        })
+                    break
                 try:
-                    yield _sse("platform", fut.result())
-                except Exception as err:
-                    yield _sse("platform", {
-                        "platform": src, "label": platforms.PLATFORMS.get(src, {}).get("label", src),
-                        "count": 0, "tracks": [], "error": str(err)[:160],
-                    })
-        except FutureTimeout:
-            for fut, src in futures.items():
-                if not fut.done():
-                    yield _sse("platform", {
-                        "platform": src, "label": platforms.PLATFORMS.get(src, {}).get("label", src),
-                        "count": 0, "tracks": [], "error": "timeout",
-                    })
+                    kind, src, payload = events.get(timeout=min(remain, 1.0))
+                except queue.Empty:
+                    # 首屏拿数据前可能有十几秒静默，定期发注释行保活，避免中间层掐断
+                    if time.time() - last_emit > 15:
+                        last_emit = time.time()
+                        yield ": ping\n\n"
+                    continue
+                last_emit = time.time()
+                if kind == "track":
+                    yield _sse("track", {"platform": src, "track": payload})
+                    continue
+                pending.discard(src)
+                yield _sse("platform", payload)
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
         yield _sse("done", {"ok": True})
