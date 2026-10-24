@@ -342,6 +342,15 @@ header.top {
 }
 .feats[hidden] { display: none; }
 .feat {
+  /* 序号与标题同一行，描述独占下一行 */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "n title"
+    "desc desc";
+  column-gap: 10px;
+  row-gap: 8px;
+  align-items: center;
   padding: 20px 20px 22px;
   border-radius: var(--radius);
   background: rgba(255, 255, 255, .58);
@@ -362,11 +371,11 @@ header.top {
   background: var(--grad); color: #fff;
   font-size: 11.5px; font-weight: 800;
   box-shadow: 0 4px 12px -6px rgba(109, 94, 252, .9);
-  margin-bottom: 13px;
+  grid-area: n;
   font-variant-numeric: tabular-nums;
 }
-.feat b { display: block; font-size: 14.5px; letter-spacing: -.015em; margin-bottom: 5px; }
-.feat p { margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.75; }
+.feat b { display: block; grid-area: title; font-size: 14.5px; letter-spacing: -.015em; }
+.feat p { grid-area: desc; margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.75; }
 
 /* 搜索框：一体化玻璃胶囊 */
 .searchbar {
@@ -1017,8 +1026,8 @@ footer.foot {
   .hero.compact h1 { font-size: 17px; margin-bottom: 12px; }
 
   .feats { grid-template-columns: 1fr; gap: 10px; margin-top: 34px; }
-  .feat { padding: 16px 17px 18px; }
-  .feat .n { margin-bottom: 10px; }
+  .feat { padding: 14px 16px 16px; row-gap: 5px; column-gap: 9px; }
+  .feat .n { width: 24px; height: 24px; border-radius: 8px; font-size: 10.5px; }
 
   .searchbar { padding: 5px; border-radius: 17px; gap: 4px; }
   .searchbar input { padding: 10px 6px 10px 11px; font-size: 16px; }
