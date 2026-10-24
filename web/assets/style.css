@@ -422,7 +422,7 @@ header.top {
 
 /* 按钮忙碌态：spinner + 等宽数字，宽度不跳 */
 .searchbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 104px; }
-.searchbar .btn.is-busy { cursor: progress; }
+.searchbar .btn.is-busy { cursor: progress; padding: 0 18px; min-width: 152px; }
 .searchbar .btn.is-busy:disabled { opacity: 1; }
 .searchbar .btn.is-busy::before {
   content: "";

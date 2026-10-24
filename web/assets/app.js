@@ -484,7 +484,7 @@
 
     const txt = btn.querySelector('.btn-txt') || btn;
     if (phase === 'searching') txt.textContent = '搜索中';
-    else if (phase === 'streaming') txt.textContent = (opt.total || 0) + ' 首';
+    else if (phase === 'streaming') txt.textContent = '已找到 ' + (opt.total || 0) + ' 首';
     else if (phase === 'done') {
       txt.textContent = '共 ' + (opt.total || 0) + ' 首';
       state.searchResetTimer = setTimeout(() => { setSearchPhase('idle'); }, 1400);
