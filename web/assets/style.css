@@ -314,6 +314,7 @@ header.top {
   margin: 0 auto 26px;
   color: var(--text-2); font-size: 14.5px;
   max-width: 520px; line-height: 1.7;
+  text-wrap: pretty;   /* 避免末行只剩「分/首」这种孤字 */
   animation: rise .55s cubic-bezier(.22, .9, .3, 1) both;
   animation-delay: .08s;
 }
@@ -965,26 +966,36 @@ footer.foot {
 /* ---------- 移动端 ---------- */
 @media (max-width: 760px) {
   .wrap { padding: 0 14px; }
-  /* 顶栏两行：第一行品牌 + 账号，第二行分段导航，避免挤爆 */
+  /* 顶栏单行：品牌 + 分段导航 + 账号，都在同一行（窄屏时导航可横向滑动） */
   .top-inner {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "brand user"
-      "tabs tabs";
+    display: flex;
     align-items: center;
-    height: auto;
-    padding-top: 9px;
-    padding-bottom: 8px;
-    gap: 7px 6px;
+    height: 56px;
+    gap: 8px;
   }
-  .brand { grid-area: brand; }
+  .brand { flex: none; }
   .brand span.txt { display: none; }
   .brand .mark { width: 30px; height: 30px; font-size: 14px; border-radius: 10px; }
-  .top-right { grid-area: user; justify-self: end; margin-left: 0; }
-  .tabs { grid-area: tabs; width: 100%; margin: 0; padding: 3px; gap: 3px; }
-  .tabs button { flex: 1; padding: 7px 8px; font-size: 12.5px; text-align: center; }
-  body > main.wrap { min-height: calc(100vh - 92px); }
+  .top-right { margin-left: 0; flex: none; }
+  .tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 3px;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  /* 字号/内边距随视口收缩，320px 也能三格排下不裁切 */
+  .tabs button {
+    flex: 0 1 auto;
+    padding: 7px clamp(6px, 2.2vw, 11px);
+    font-size: clamp(11px, 3.2vw, 12.5px);
+    text-align: center;
+  }
+  body > main.wrap { min-height: calc(100vh - 84px); }
 
   /* 批量栏：勾选/操作/报价分三行 */
   .batchbar { flex-wrap: wrap; row-gap: 9px; padding: 11px 13px; }
@@ -1000,6 +1011,8 @@ footer.foot {
   .hero-pill { font-size: 11.5px; padding: 5px 12px 5px 9px; margin-bottom: 16px; }
   .hero h1 { font-size: 25px; margin-bottom: 8px; }
   .hero p { font-size: 13px; margin-bottom: 20px; }
+  /* 副标题拆两行：价格信息整体换行，避免末行只剩「分/首」 */
+  .hero p .hero-price { display: block; }
   .hero.compact { padding: 12px 0 2px; }
   .hero.compact h1 { font-size: 17px; margin-bottom: 12px; }
 
@@ -1041,6 +1054,11 @@ footer.foot {
     width: auto;
   }
   .badge.credits { padding: 3px 7px; font-size: 11px; }
+
+  /* 超窄屏：积分徽章收进菜单（顶栏单行要给三个入口留位置） */
+  @media (max-width: 420px) {
+    .userbox .badge.credits { display: none; }
+  }
 
   .modal { padding: 22px; border-radius: 22px; }
   .jobline { padding: 11px 13px; gap: 9px; }

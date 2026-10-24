@@ -1320,6 +1320,11 @@
 
   /* ---------------- 启动 ---------------- */
   (async function boot() {
+    // 窄屏输入框放不下长占位文案，缩短到「歌名 / 歌手」避免截断
+    if (window.matchMedia('(max-width: 480px)').matches) {
+      const q = $('#q');
+      if (q) q.placeholder = '歌名 / 歌手';
+    }
     await refreshMe();
     try { await loadPlatforms(); } catch (e) { toast('平台列表加载失败'); }
   })();
