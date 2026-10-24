@@ -17,7 +17,7 @@
     jobs: new Map(),         // job_id -> detail（仅轮询中的）
     polling: null,
     searching: false,        // 搜索进行中（防重入 + 驱动搜索栏边框）
-    searchResetTimer: null,
+    lastQuery: '',           // 上一次搜索的关键词，用于判断「关键词是否被改动」
     searchSeq: 0,            // 结果到达顺序，用于「谁先有资源谁靠前」排序
   };
 
@@ -470,7 +470,6 @@
     const btn = $('#btnSearch');
     if (!bar || !btn) return;
     const opt = info || {};
-    if (state.searchResetTimer) { clearTimeout(state.searchResetTimer); state.searchResetTimer = null; }
 
     if (phase === 'reset') phase = 'idle';
     const busy = phase === 'searching' || phase === 'streaming';
@@ -485,10 +484,9 @@
     const txt = btn.querySelector('.btn-txt') || btn;
     if (phase === 'searching') txt.textContent = '搜索中';
     else if (phase === 'streaming') txt.textContent = '已找到 ' + (opt.total || 0) + ' 首';
-    else if (phase === 'done') {
-      txt.textContent = '共 ' + (opt.total || 0) + ' 首';
-      state.searchResetTimer = setTimeout(() => { setSearchPhase('idle'); }, 1400);
-    } else txt.textContent = '搜索';
+    // done 保持「共找到 N 首」不回退，等用户改动关键词（input 事件）再复位为「搜索」
+    else if (phase === 'done') txt.textContent = '共找到 ' + (opt.total || 0) + ' 首';
+    else txt.textContent = '搜索';
   }
 
   function searchTotals() {
@@ -499,24 +497,6 @@
       if (c) hit += 1;
     });
     return { total: n, platforms: state.results.size, hit };
-  }
-
-  function renderSearchHead(final, srcCount) {
-    const status = $('#searchStatus');
-    if (!status) return;
-    const t = searchTotals();
-    if (!t.platforms) { status.innerHTML = ''; return; }
-    let meta;
-    if (final) {
-      if (!t.total) meta = '暂无结果';
-      else {
-        meta = '共 ' + t.total + ' 首 · 来自 ' + t.hit + ' 个平台';
-        if (t.platforms > t.hit) meta += ' · ' + (t.platforms - t.hit) + ' 个平台无结果';
-      }
-    } else {
-      meta = '已找到 ' + t.total + ' 首 · ' + t.platforms + '/' + (srcCount || t.platforms) + ' 个平台已返回';
-    }
-    status.innerHTML = '<div class="section-head"><h2>搜索结果</h2><span class="meta">' + meta + '</span></div>';
   }
 
   async function doSearch() {
@@ -533,11 +513,9 @@
     state.picked.clear();
     state.spicked.clear();
     state.searchSeq = 0;
+    state.lastQuery = q;
     $('#results').innerHTML = '';
     $('#batchBar').innerHTML = '';
-    const status = $('#searchStatus');
-    // 搜索中的状态由按钮 + 搜索栏边框表达，这里先留空，等首个平台返回再出结果头
-    status.innerHTML = '';
     setSearchPhase('searching');
     renderChips();
 
@@ -563,7 +541,6 @@
       res.count = res.tracks.length;
       renderChips();
       renderResults();
-      renderSearchHead(false, sources.length);
       if (!settled) setSearchPhase('streaming', { total: searchTotals().total });
     });
     es.addEventListener('platform', (ev) => {
@@ -584,14 +561,12 @@
       }
       renderChips();
       renderResults();
-      renderSearchHead(false, sources.length);
     });
     es.addEventListener('done', () => {
       settled = true;
       es.close();
       const t = searchTotals();
       setSearchPhase('done', { total: t.total });
-      renderSearchHead(true, sources.length);
       if (!t.total) {
         $('#results').innerHTML = '<div class="card empty">没有找到相关歌曲，换个关键词或换几个平台试试</div>';
       }
@@ -604,7 +579,6 @@
       if (!t.platforms) { searchFallback(q, sources); return; }
       // 已经收到部分结果就当作完成，不要退回空白
       setSearchPhase('done', { total: t.total });
-      renderSearchHead(true, sources.length);
     };
   }
 
@@ -617,10 +591,9 @@
       renderResults();
       const total = data.results.reduce((n, r) => n + (r.count || 0), 0);
       setSearchPhase('done', { total });
-      renderSearchHead(true, sources.length);
     } catch (err) {
       setSearchPhase('idle');
-      $('#searchStatus').innerHTML = '<div class="card empty">' + esc(err.message) + '</div>';
+      toast(err.message || '搜索失败，请重试');
     }
   }
 
@@ -1328,6 +1301,11 @@
   /* ---------------- 事件绑定 ---------------- */
   $('#btnSearch').onclick = doSearch;
   $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+  // 关键词一改，按钮就从「共找到 N 首」复位为「搜索」（搜索进行中不动）
+  $('#q').addEventListener('input', () => {
+    if (state.searching) return;
+    if ($('#q').value.trim() !== state.lastQuery) setSearchPhase('idle');
+  });
   $$('#starter .sug').forEach((b) => {
     b.onclick = () => { $('#q').value = b.dataset.q; doSearch(); };
   });
