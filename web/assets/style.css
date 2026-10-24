@@ -375,7 +375,8 @@ header.top {
   padding: 7px;
   border-radius: 20px;
   background: var(--glass-strong);
-  border: 1px solid rgba(255, 255, 255, .95);
+  /* 常态就带一圈淡紫描边，不靠聚焦才显形 */
+  border: 1px solid rgba(109, 94, 252, .42);
   box-shadow: 0 2px 3px rgba(24, 26, 46, .03), 0 20px 44px -22px rgba(70, 60, 140, .42);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
@@ -383,9 +384,10 @@ header.top {
   animation: rise .6s cubic-bezier(.22, .9, .3, 1) both;
   animation-delay: .12s;
 }
+.searchbar:hover { border-color: rgba(109, 94, 252, .5); }
 .searchbar:focus-within {
-  border-color: rgba(109, 94, 252, .45);
-  box-shadow: 0 0 0 4px rgba(109, 94, 252, .11), 0 22px 48px -20px rgba(70, 60, 140, .5);
+  border-color: rgba(109, 94, 252, .72);
+  box-shadow: 0 0 0 4px rgba(109, 94, 252, .13), 0 22px 48px -20px rgba(70, 60, 140, .5);
 }
 .searchbar input {
   flex: 1; min-width: 0;
