@@ -18,6 +18,7 @@
     polling: null,
     searching: false,        // 搜索进行中（防重入 + 驱动搜索栏边框）
     searchResetTimer: null,
+    searchSeq: 0,            // 结果到达顺序，用于「谁先有资源谁靠前」排序
   };
 
   const pickSet = (name) => (name === 'search' ? state.spicked : state.picked);
@@ -491,9 +492,13 @@
   }
 
   function searchTotals() {
-    let n = 0;
-    state.results.forEach((r) => { n += (r.tracks || []).length; });
-    return { total: n, platforms: state.results.size };
+    let n = 0, hit = 0;
+    state.results.forEach((r) => {
+      const c = (r.tracks || []).length;
+      n += c;
+      if (c) hit += 1;
+    });
+    return { total: n, platforms: state.results.size, hit };
   }
 
   function renderSearchHead(final, srcCount) {
@@ -501,9 +506,16 @@
     if (!status) return;
     const t = searchTotals();
     if (!t.platforms) { status.innerHTML = ''; return; }
-    const meta = final
-      ? (t.total ? '共 ' + t.total + ' 首 · 来自 ' + t.platforms + ' 个平台' : '暂无结果')
-      : '已找到 ' + t.total + ' 首 · ' + t.platforms + '/' + (srcCount || t.platforms) + ' 个平台';
+    let meta;
+    if (final) {
+      if (!t.total) meta = '暂无结果';
+      else {
+        meta = '共 ' + t.total + ' 首 · 来自 ' + t.hit + ' 个平台';
+        if (t.platforms > t.hit) meta += ' · ' + (t.platforms - t.hit) + ' 个平台无结果';
+      }
+    } else {
+      meta = '已找到 ' + t.total + ' 首 · ' + t.platforms + '/' + (srcCount || t.platforms) + ' 个平台已返回';
+    }
     status.innerHTML = '<div class="section-head"><h2>搜索结果</h2><span class="meta">' + meta + '</span></div>';
   }
 
@@ -520,6 +532,7 @@
     state.results.clear();
     state.picked.clear();
     state.spicked.clear();
+    state.searchSeq = 0;
     $('#results').innerHTML = '';
     $('#batchBar').innerHTML = '';
     const status = $('#searchStatus');
@@ -541,7 +554,8 @@
       const meta = state.platforms.find((x) => x.key === data.platform) || {};
       let res = state.results.get(data.platform);
       if (!res) {
-        res = { platform: data.platform, label: data.track.platform_label || meta.label || data.platform, count: 0, tracks: [] };
+        res = { platform: data.platform, label: data.track.platform_label || meta.label || data.platform,
+                count: 0, tracks: [], seq: ++state.searchSeq };
         state.results.set(data.platform, res);
       }
       if ((res.tracks || []).some((t) => t.track_key === data.track.track_key)) return;
@@ -565,6 +579,7 @@
         state.results.set(data.platform, {
           platform: data.platform, label: data.label, count: data.count || 0,
           elapsed: data.elapsed, error: data.error, tracks: data.tracks || [],
+          seq: ++state.searchSeq,
         });
       }
       renderChips();
@@ -597,7 +612,7 @@
     setSearchPhase('searching');
     try {
       const data = await api('/api/search?q=' + encodeURIComponent(q) + '&platforms=' + encodeURIComponent(sources.join(',')));
-      data.results.forEach((r) => state.results.set(r.platform, r));
+      data.results.forEach((r, i) => { r.seq = i + 1; state.results.set(r.platform, r); });
       renderChips();
       renderResults();
       const total = data.results.reduce((n, r) => n + (r.count || 0), 0);
@@ -647,13 +662,23 @@
     return out.join(' · ');
   }
 
+  function orderedResults() {
+    // 「谁先出结果谁靠前」：有曲目的按到达顺序在前，超时/空的沉底
+    const items = [];
+    state.results.forEach((res, key) => items.push([key, res]));
+    items.sort((a, b) => {
+      const ae = (a[1].tracks || []).length ? 0 : 1;
+      const be = (b[1].tracks || []).length ? 0 : 1;
+      if (ae !== be) return ae - be;
+      return (a[1].seq || 0) - (b[1].seq || 0);
+    });
+    return items;
+  }
+
   function renderResults() {
     const wrap = $('#results');
-    const order = state.platforms.map((p) => p.key);
     let html = '';
-    order.forEach((key) => {
-      const res = state.results.get(key);
-      if (!res) return;
+    orderedResults().forEach(([key, res]) => {
       const p = state.platforms.find((x) => x.key === key) || {};
       const tracks = res.tracks || [];
       const allOn = tracks.length > 0 && tracks.every((t) => state.spicked.has(t.track_key));
